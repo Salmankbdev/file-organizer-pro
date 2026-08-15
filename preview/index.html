@@ -1,0 +1,1102 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>File Organizer Pro — UI Preview</title>
+<style>
+  :root {
+    --surface: #FEF7FF; --surface-low: #F7F2FA; --surface-high: #E8E0E9;
+    --on-surface: #1D1B20; --on-variant: #49454F;
+    --primary: #6750A4; --on-primary: #FFFFFF;
+    --sec-container: #E8DEF8; --on-sec-container: #4F378B;
+    --tertiary: #7D5260;
+    --outline: #79747E; --outline-variant: #CAC4D0;
+    --error: #B3261E; --error-container: #F9DEDC; --on-error-container: #410E0B;
+    --success: #2E7D32;
+    --rail-w: 84px;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(0,0,0,.06);
+  }
+  html[data-theme="dark"] {
+    --surface: #141218; --surface-low: #1D1B20; --surface-high: #36343B;
+    --on-surface: #E6E0E9; --on-variant: #CAC4D0;
+    --primary: #D0BCFF; --on-primary: #381E72;
+    --sec-container: #4F378B; --on-sec-container: #E8DEF8;
+    --tertiary: #EFB8C8;
+    --outline: #938F99; --outline-variant: #49454F;
+    --error: #F2B8B5; --error-container: #8C1D18; --on-error-container: #F9DEDC;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+    background: var(--surface); color: var(--on-surface);
+    height: 100vh; overflow: hidden;
+  }
+  #app { display: flex; height: 100vh; }
+
+  /* ---------- Navigation rail ---------- */
+  #rail {
+    width: var(--rail-w); flex-shrink: 0;
+    background: var(--surface-low);
+    border-right: 1px solid var(--outline-variant);
+    display: flex; flex-direction: column; align-items: center;
+    padding-top: 12px; gap: 4px;
+  }
+  #rail .logo {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: var(--primary); color: var(--on-primary);
+    display: grid; place-items: center; font-size: 20px;
+    margin-bottom: 2px;
+  }
+  #rail .brand {
+    font-size: 9px; font-weight: 600; text-align: center;
+    color: var(--on-variant); line-height: 1.2; margin-bottom: 14px;
+  }
+  .rail-btn {
+    width: 68px; border: none; background: transparent; cursor: pointer;
+    border-radius: 12px; padding: 8px 4px;
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    color: var(--on-variant); font-size: 11px;
+  }
+  .rail-btn:hover { background: color-mix(in srgb, var(--on-variant) 8%, transparent); }
+  .rail-btn.active {
+    background: var(--sec-container); color: var(--on-sec-container);
+    font-weight: 600;
+  }
+  .rail-btn .ico { font-size: 22px; line-height: 1; }
+
+  /* ---------- Main content ---------- */
+  main { flex: 1; overflow: auto; padding: 28px 32px; }
+  .tab { display: none; max-width: 1180px; margin: 0 auto; }
+  .tab.active { display: block; }
+  h1 { font-size: 26px; font-weight: 600; margin-bottom: 4px; }
+  .sub { color: var(--on-variant); font-size: 14px; margin-bottom: 20px; }
+
+  .btn {
+    border: none; cursor: pointer; border-radius: 999px;
+    padding: 12px 22px; font-size: 14px; font-weight: 600;
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: filter .15s;
+  }
+  .btn:hover { filter: brightness(1.06); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btn-filled { background: var(--primary); color: var(--on-primary); }
+  .btn-tonal { background: var(--sec-container); color: var(--on-sec-container); }
+  .btn-outline {
+    background: transparent; color: var(--primary);
+    border: 1px solid var(--outline);
+  }
+  .btn-outline[data-accent] { color: var(--on-variant); }
+  .btn.active { outline: 2px solid var(--primary); outline-offset: 0; }
+
+  .card {
+    background: var(--surface-low); border-radius: var(--radius);
+    box-shadow: var(--shadow); margin-bottom: 14px;
+  }
+  .card-pad { padding: 16px; }
+
+  /* ---------- Dashboard ---------- */
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px; margin-bottom: 28px;
+  }
+  .stat {
+    background: var(--surface-low); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .stat .top { display: flex; justify-content: space-between; align-items: center; }
+  .stat .icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: grid; place-items: center; font-size: 18px;
+    background: color-mix(in srgb, var(--primary) 14%, transparent);
+  }
+  .stat .tag { font-size: 11px; color: var(--on-variant); }
+  .stat .label { font-size: 13px; color: var(--on-variant); }
+  .stat .value { font-size: 24px; font-weight: 600; }
+
+  .section-title { font-size: 15px; font-weight: 600; margin-bottom: 10px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip {
+    background: var(--surface-high); border-radius: 999px;
+    padding: 7px 12px; font-size: 13px; display: inline-flex;
+    gap: 6px; align-items: center;
+  }
+
+  /* ---------- Forms / inputs ---------- */
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  .field {
+    flex: 1; min-width: 260px;
+    background: var(--surface); color: var(--on-surface);
+    border: 1px solid var(--outline); border-radius: 4px;
+    padding: 14px 12px 14px 40px; font-size: 14px; outline: none;
+  }
+  .field-wrap { position: relative; flex: 1; min-width: 260px; }
+  .field-wrap .f-ico {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    font-size: 18px; color: var(--on-variant);
+  }
+  .progress { height: 8px; border-radius: 4px; background: var(--surface-high); overflow: hidden; }
+  .progress > div { height: 100%; background: var(--primary); width: 0; transition: width .15s; border-radius: 4px; }
+  .progress-label { font-size: 12px; color: var(--on-variant); margin-top: 6px; }
+
+  /* ---------- Tables ---------- */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; font-size: 12px; font-weight: 600; color: var(--on-variant);
+    padding: 10px 16px; border-bottom: 1px solid var(--outline-variant);
+    cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  thead th .arrow { font-size: 10px; }
+  tbody td { padding: 9px 16px; border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent); white-space: nowrap; }
+  tbody tr:hover { background: color-mix(in srgb, var(--on-variant) 6%, transparent); }
+  .num { text-align: right; }
+  .table-scroll { overflow: auto; max-height: 46vh; border-radius: 0 0 var(--radius) var(--radius); }
+  .table-foot { padding: 8px 16px; font-size: 12px; color: var(--on-variant); }
+
+  /* ---------- Organize ---------- */
+  .plan-sec {
+    background: var(--surface-low); border-radius: var(--radius);
+    box-shadow: var(--shadow); margin-bottom: 12px; overflow: hidden;
+  }
+  .plan-sec header {
+    padding: 14px 16px; display: flex; gap: 10px; align-items: center;
+    cursor: pointer;
+  }
+  .plan-sec header .em { font-size: 22px; }
+  .plan-sec header .meta { font-size: 12px; color: var(--on-variant); }
+  .plan-sec .body { border-top: 1px solid var(--outline-variant); }
+  .plan-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 16px 7px 52px; font-size: 13px;
+  }
+  .plan-row .dest { color: var(--on-variant); font-size: 12px; }
+  .plan-row .arr { color: var(--primary); font-weight: 600; margin: 0 4px; }
+
+  /* ---------- Settings ---------- */
+  .set-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 13px 16px; border-bottom: 1px solid color-mix(in srgb, var(--outline-variant) 60%, transparent);
+  }
+  .set-row:last-child { border-bottom: none; }
+  .set-row .s-ico { font-size: 20px; width: 28px; text-align: center; }
+  .set-row .s-title { font-weight: 600; font-size: 14px; }
+  .set-row .s-sub { font-size: 12px; color: var(--on-variant); margin-top: 2px; }
+  .set-row .grow { flex: 1; }
+  .seg { display: inline-flex; background: var(--surface-high); border-radius: 999px; padding: 3px; gap: 2px; }
+  .seg button {
+    border: none; background: transparent; cursor: pointer;
+    padding: 7px 16px; border-radius: 999px; font-size: 13px; color: var(--on-variant);
+  }
+  .seg button.active { background: var(--primary); color: var(--on-primary); font-weight: 600; }
+  .swatches { display: flex; gap: 12px; }
+  .swatch {
+    width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; display: grid; place-items: center; color: #fff; font-size: 14px;
+  }
+  .swatch.active { border-color: var(--on-surface); }
+
+  .toggle { position: relative; width: 46px; height: 26px; flex-shrink: 0; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .track {
+    position: absolute; inset: 0; border-radius: 999px;
+    background: var(--surface-high); border: 2px solid var(--outline);
+    transition: .2s; cursor: pointer;
+  }
+  .toggle .track::after {
+    content: ""; position: absolute; width: 16px; height: 16px;
+    border-radius: 50%; background: var(--outline); top: 3px; left: 3px; transition: .2s;
+  }
+  .toggle input:checked + .track { background: var(--primary); border-color: var(--primary); }
+  .toggle input:checked + .track::after { transform: translateX(20px); background: var(--on-primary); }
+
+  /* ---------- Empty state ---------- */
+  .empty { text-align: center; padding: 60px 20px; color: var(--on-variant); }
+  .empty .big { font-size: 48px; margin-bottom: 12px; opacity: .7; }
+  .empty h3 { color: var(--on-surface); margin-bottom: 6px; }
+
+  /* ---------- Snackbar / banner ---------- */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: var(--on-surface); color: var(--surface);
+    padding: 12px 20px; border-radius: 8px; font-size: 14px;
+    opacity: 0; transition: .25s; z-index: 50; box-shadow: 0 4px 12px rgba(0,0,0,.3);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  #mock-badge {
+    position: fixed; top: 10px; right: 12px; z-index: 60;
+    font-size: 10px; letter-spacing: .4px; text-transform: uppercase;
+    background: color-mix(in srgb, var(--tertiary) 16%, transparent);
+    color: var(--tertiary); padding: 4px 10px; border-radius: 999px;
+  }
+  .badge-ok { color: var(--success); }
+  .badge-err { color: var(--error); }
+</style>
+</head>
+<body>
+<div id="mock-badge">UI preview · static mockup</div>
+
+<div id="app">
+  <nav id="rail">
+    <div class="logo">📁</div>
+    <div class="brand">File Organizer<br>Pro</div>
+    <button class="rail-btn active" data-tab="dashboard"><span class="ico">📊</span>Dashboard</button>
+    <button class="rail-btn" data-tab="scan"><span class="ico">🔎</span>Scan</button>
+    <button class="rail-btn" data-tab="organize"><span class="ico">📂</span>Organize</button>
+    <button class="rail-btn" data-tab="duplicates"><span class="ico">⧉</span>Duplicates</button>
+    <button class="rail-btn" data-tab="large"><span class="ico">📈</span>Large Files</button>
+    <button class="rail-btn" data-tab="rules"><span class="ico">📏</span>Rules</button>
+    <button class="rail-btn" data-tab="storage"><span class="ico">🧮</span>Storage</button>
+    <button class="rail-btn" data-tab="history"><span class="ico">🕘</span>History</button>
+    <button class="rail-btn" data-tab="settings"><span class="ico">⚙️</span>Settings</button>
+  </nav>
+
+  <main>
+    <!-- ============ DASHBOARD ============ -->
+    <section id="tab-dashboard" class="tab active">
+      <h1>Dashboard</h1>
+      <p class="sub" id="dash-sub">Run your first scan to see the overview of a folder.</p>
+      <div class="actions">
+        <button class="btn btn-filled" data-go="scan">📁 Scan Folder</button>
+        <button class="btn btn-tonal" data-go="organize">📂 Organize</button>
+        <button class="btn btn-outline" data-go="duplicates">📑 Find Duplicates</button>
+        <button class="btn btn-outline" data-go="large">📈 Find Large Files</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="top"><div class="icon">🗎</div><span class="tag" id="d-tag-files">last scan</span></div><span class="label">Total Files</span><span class="value" id="d-files">0</span></div>
+        <div class="stat"><div class="top"><div class="icon">💾</div><span class="tag">last scan</span></div><span class="label">Storage Used</span><span class="value" id="d-storage">0 B</span></div>
+        <div class="stat"><div class="top"><div class="icon">⧉</div><span class="tag" id="d-tag-dup">latest run</span></div><span class="label">Duplicate Files</span><span class="value" id="d-dup">—</span></div>
+        <div class="stat"><div class="top"><div class="icon">📈</div><span class="tag" id="d-tag-large">latest run</span></div><span class="label">Large Files</span><span class="value" id="d-large">—</span></div>
+        <div class="stat"><div class="top"><div class="icon">📂</div><span class="tag">all time</span></div><span class="label">Organized Files</span><span class="value" id="d-organized">0</span></div>
+        <div class="stat"><div class="top"><div class="icon">🕘</div><span class="tag" id="d-tag-last">never</span></div><span class="label">Last Scan</span><span class="value" id="d-last">Never</span></div>
+      </div>
+      <div class="section-title">Files by Category</div>
+      <div class="chips" id="d-cats"><span class="chip" style="opacity:.6">No scan yet</span></div>
+    </section>
+
+    <!-- ============ SCAN ============ -->
+    <section id="tab-scan" class="tab">
+      <h1>Scan a Folder</h1>
+      <p class="sub">Recursively inspect any folder — size, category and modified date for every file.</p>
+      <div class="row">
+        <div class="field-wrap">
+          <span class="f-ico">📁</span>
+          <input id="scan-path" class="field" value="C:\Users\You\Downloads" spellcheck="false">
+        </div>
+        <button class="btn btn-outline" id="btn-browse">Browse</button>
+        <button class="btn btn-filled" id="btn-scan">🔎 Scan</button>
+      </div>
+      <div id="scan-progress-wrap" style="display:none; margin-top:16px">
+        <div class="progress"><div id="scan-progress"></div></div>
+        <div class="progress-label" id="scan-progress-label">Scanning… 0 files (0 B)</div>
+      </div>
+
+      <div id="scan-results" style="display:none; margin-top:20px">
+        <div class="card card-pad">
+          <div class="row" style="gap:26px">
+            <span>🗎 <b>Files:</b> <span id="r-files">0</span></span>
+            <span>💾 <b>Total size:</b> <span id="r-size">0 B</span></span>
+            <span>⏱ <b>Took:</b> <span id="r-took">0 s</span></span>
+          </div>
+        </div>
+        <div class="row" style="margin:14px 0 14px">
+          <div class="field-wrap" style="max-width:280px">
+            <span class="f-ico">🔽</span>
+            <input id="scan-filter" class="field" placeholder="Filter by name…" style="padding:10px 12px 10px 40px">
+          </div>
+          <select id="scan-cat" class="field" style="padding:10px 12px; max-width:220px">
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <div class="card">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th data-sort="name">Name <span class="arrow"></span></th>
+                  <th data-sort="cat">Category <span class="arrow"></span></th>
+                  <th class="num" data-sort="size">Size <span class="arrow"></span></th>
+                  <th data-sort="modified">Modified <span class="arrow"></span></th>
+                </tr>
+              </thead>
+              <tbody id="scan-tbody"></tbody>
+            </table>
+          </div>
+          <div class="table-foot" id="scan-foot"></div>
+        </div>
+      </div>
+
+      <div id="scan-empty" class="card">
+        <div class="empty">
+          <div class="big">🗀</div>
+          <h3>Nothing scanned yet</h3>
+          <p>Pick a folder (e.g. Downloads) and press Scan to inspect its contents.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ORGANIZE ============ -->
+    <section id="tab-organize" class="tab">
+      <h1>Organize Files</h1>
+      <p class="sub" id="org-sub">Preview how files would be sorted into category folders, then apply. Every move can be undone.</p>
+
+      <div id="org-prompt" class="card">
+        <div class="empty">
+          <div class="big">👁</div>
+          <h3>Ready to preview</h3>
+          <p>Build a move plan from the latest scan. Nothing is changed until you apply it.</p>
+          <div style="margin-top:18px">
+            <button class="btn btn-filled" id="btn-preview">👁 Preview changes</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="org-plan" style="display:none"></div>
+
+      <div id="org-progress-wrap" style="display:none; margin:14px 0">
+        <div class="card card-pad">
+          <b id="org-progress-title">Applying… 0 / 0</b>
+          <div class="progress" style="margin-top:12px"><div id="org-progress"></div></div>
+          <div class="progress-label" id="org-progress-current"></div>
+        </div>
+      </div>
+
+      <div id="org-actions" style="display:none; margin-top:6px" class="row">
+        <button class="btn btn-filled" id="btn-apply">✔ Apply changes</button>
+        <button class="btn btn-outline" id="btn-undo" style="display:none">↩ Undo this operation</button>
+        <button class="btn btn-outline" id="btn-rebuild" style="display:none">⟳ Rebuild plan</button>
+      </div>
+      <div id="org-message" style="margin-top:14px; color:var(--on-variant); font-size:14px"></div>
+    </section>
+
+    <!-- ============ DUPLICATES ============ -->
+    <section id="tab-duplicates" class="tab">
+      <h1>Duplicate Files</h1>
+      <p class="sub">Files are compared by size, then by SHA-256 content hash — only identical files are reported.</p>
+      <div id="dup-empty" class="card">
+        <div class="empty">
+          <div class="big">⧉</div>
+          <h3>Ready to scan for duplicates</h3>
+          <p>Finds groups of files that are byte-for-byte identical and shows how much space copies waste.</p>
+          <div style="margin-top:18px">
+            <button class="btn btn-filled" id="btn-dup-run">⧉ Find duplicates</button>
+          </div>
+        </div>
+      </div>
+      <div id="dup-results" style="display:none; margin-top:16px">
+        <div class="card card-pad" id="dup-summary"></div>
+        <div id="dup-groups" style="margin-top:14px"></div>
+      </div>
+    </section>
+
+    <!-- ============ LARGE FILES ============ -->
+    <section id="tab-large" class="tab">
+      <h1>Large Files</h1>
+      <p class="sub">Find files that are larger than a size you choose.</p>
+      <div class="card card-pad">
+        <div class="row" style="flex-wrap:wrap; gap:10px">
+          <button class="btn btn-outline large-preset" data-mb="100">100 MB</button>
+          <button class="btn btn-outline large-preset" data-mb="500">500 MB</button>
+          <button class="btn btn-outline large-preset" data-mb="1024">1 GB</button>
+          <input id="large-custom" class="field" placeholder="Custom MB" style="max-width:130px" type="number" min="1">
+          <button class="btn btn-filled" id="btn-large-run">📈 Find</button>
+        </div>
+      </div>
+      <div id="large-empty" class="card" style="margin-top:16px">
+        <div class="empty">
+          <div class="big">📈</div>
+          <h3>Pick a size and press Find</h3>
+          <p>Results are sorted by size, largest first, with actions to open, locate or delete each file.</p>
+        </div>
+      </div>
+      <div id="large-results" style="display:none; margin-top:16px">
+        <div class="card">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Name</th><th class="num">Size</th><th>Modified</th><th>Actions</th></tr></thead>
+              <tbody id="large-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RULES ============ -->
+    <section id="tab-rules" class="tab">
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <div>
+          <h1>Custom Rules</h1>
+          <p class="sub">Rules are checked before the default category mapping when you organize a folder.</p>
+        </div>
+        <button class="btn btn-filled" id="btn-rule-add">＋ New rule</button>
+      </div>
+      <div id="rules-empty" class="card" style="margin-top:16px">
+        <div class="empty">
+          <div class="big">📏</div>
+          <h3>No rules yet</h3>
+          <p>Create a rule to send matching files to a custom folder, like "invoice" → Documents/Invoices.</p>
+        </div>
+      </div>
+      <div id="rules-list" style="margin-top:16px"></div>
+    </section>
+
+    <!-- ============ STORAGE ============ -->
+    <section id="tab-storage" class="tab">
+      <h1>Storage Analytics</h1>
+      <p class="sub" id="storage-sub">Storage analytics are built from the latest scan.</p>
+      <div id="storage-empty" class="card" style="margin-top:16px">
+        <div class="empty">
+          <div class="big">🧮</div>
+          <h3>Run a scan first</h3>
+          <p>Storage analytics are built from the latest scan.</p>
+        </div>
+      </div>
+      <div id="storage-body" style="display:none; margin-top:16px">
+        <div class="section-title">Storage by category</div>
+        <div class="card card-pad" id="storage-bars"></div>
+        <div class="section-title" style="margin-top:22px">Largest files</div>
+        <div class="card" id="storage-top"></div>
+      </div>
+    </section>
+
+    <!-- ============ HISTORY ============ -->
+    <section id="tab-history" class="tab">
+      <div class="row" style="justify-content:space-between; align-items:flex-start">
+        <div>
+          <h1>Operation History</h1>
+          <p class="sub" id="hist-sub">Every move is recorded here and can be reversed — <b id="hist-count">0</b> organize move(s) currently in effect.</p>
+        </div>
+        <button class="btn btn-tonal" id="btn-hist-undo" disabled>↩ Undo Last Operation</button>
+      </div>
+      <div id="hist-empty" class="card">
+        <div class="empty">
+          <div class="big">🕘</div>
+          <h3>No operations yet</h3>
+          <p>Organize a folder and its moves will appear here, ready to be undone.</p>
+        </div>
+      </div>
+      <div id="hist-table-wrap" class="card" style="display:none">
+        <div class="table-scroll" style="max-height:60vh">
+          <table>
+            <thead><tr><th>When</th><th>File</th><th>From → To</th><th>Action</th><th>Status</th></tr></thead>
+            <tbody id="hist-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section id="tab-settings" class="tab">
+      <h1>Settings</h1>
+      <p class="sub">Preferences are stored locally — no account, no internet.</p>
+
+      <div class="section-title">General</div>
+      <div class="card">
+        <div class="set-row">
+          <span class="s-ico">📁</span>
+          <div class="grow">
+            <div class="s-title">Default folder</div>
+            <div class="s-sub" id="set-default">Not set</div>
+          </div>
+          <button class="btn btn-outline" id="btn-browse-default" style="padding:8px 16px">Browse</button>
+          <button class="btn btn-outline" id="btn-clear-default" style="padding:8px 12px; display:none">✕</button>
+        </div>
+        <div class="set-row">
+          <span class="s-ico">🚀</span>
+          <div class="grow">
+            <div class="s-title">Scan default folder on start</div>
+            <div class="s-sub">Automatically scan the default folder when the app opens.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="set-autoscan"><span class="track"></span></label>
+        </div>
+        <div class="set-row">
+          <span class="s-ico">❓</span>
+          <div class="grow">
+            <div class="s-title">Confirm before organizing</div>
+            <div class="s-sub">Ask for confirmation before any file is moved.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="set-confirm-org" checked><span class="track"></span></label>
+        </div>
+      </div>
+
+      <div class="section-title">Appearance</div>
+      <div class="card">
+        <div class="set-row">
+          <span class="s-ico">🎨</span>
+          <div class="grow">
+            <div class="s-title">Theme mode</div>
+            <div class="s-sub">Follow your system or choose a fixed appearance.</div>
+          </div>
+          <div class="seg" id="theme-seg">
+            <button data-mode="system">System</button>
+            <button data-mode="light" class="active">Light</button>
+            <button data-mode="dark">Dark</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <span class="s-ico">🖌</span>
+          <div class="grow">
+            <div class="s-title">Accent color</div>
+            <div class="s-sub">Seeds the entire Material 3 palette.</div>
+          </div>
+          <div class="swatches" id="swatches"></div>
+        </div>
+      </div>
+
+      <div class="section-title">Safety</div>
+      <div class="card">
+        <div class="set-row">
+          <span class="s-ico">🗑</span>
+          <div class="grow">
+            <div class="s-title">Confirm before deleting</div>
+            <div class="s-sub">Ask for confirmation before any file is removed.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="set-confirm-del" checked><span class="track"></span></label>
+        </div>
+        <div class="set-row">
+          <span class="s-ico">🛡</span>
+          <div class="grow">
+            <div class="s-title">System-folder protection</div>
+            <div class="s-sub">Refuse to reorganize Windows, Program Files and other system folders.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="set-protect" checked><span class="track"></span></label>
+        </div>
+        <div class="set-row">
+          <span class="s-ico">🔁</span>
+          <div class="grow">
+            <div class="s-title">Prevent overwriting</div>
+            <div class="s-sub">When a file name already exists, add " (1)" instead of replacing the file.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="set-noverwrite" checked><span class="track"></span></label>
+        </div>
+      </div>
+      <p style="font-size:12px; color:var(--on-variant); margin-top:22px">File Organizer Pro v1.0.0 — scans, organizes and undoes everything locally. No account, no internet required.</p>
+    </section>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ---------- demo data ---------- */
+const BYTES = { B:1, KB:1024, MB:1024**2, GB:1024**3 };
+function sz(n, unit){ return (n*BYTES[unit]); }
+const FILES = [
+  ["photo1.jpg", "images",   sz(2.4,"MB"), "2026-07-21"],
+  ["photo1 copy.jpg", "images", sz(2.4,"MB"), "2026-07-21"], // duplicate
+  ["photo2.png", "images",   sz(1.8,"MB"), "2026-06-03"],
+  ["logo.svg",   "images",   sz(22,"KB"),  "2026-05-14"],
+  ["vacation.mp4","videos",  sz(120,"MB"), "2026-08-02"],
+  ["movie.mkv",  "videos",   sz(1.4,"GB"), "2026-04-19"],
+  ["report.pdf", "documents",sz(450,"KB"), "2026-07-30"],
+  ["invoice.xlsx","documents",sz(88,"KB"), "2026-08-10"],
+  ["notes.txt",  "documents",sz(12,"KB"),  "2026-07-08"],
+  ["notes (backup).txt", "documents", sz(12,"KB"), "2026-07-08"], // duplicate
+  ["readme.md",  "documents",sz(5,"KB"),   "2026-06-25"],
+  ["backup.zip", "archives", sz(45,"MB"),  "2026-03-12"],
+  ["archive.rar","archives", sz(78,"MB"),  "2026-02-27"],
+  ["installer.exe","applications", sz(12,"MB"), "2026-05-02"],
+  ["main.dart",  "code",     sz(6,"KB"),   "2026-08-11"],
+  ["utils.dart", "code",     sz(4,"KB"),   "2026-08-11"],
+  ["config.json","code",     sz(1,"KB"),   "2026-08-09"],
+];
+const CATS = {
+  images:{label:"Images", icon:"🖼"}, documents:{label:"Documents", icon:"📄"},
+  videos:{label:"Videos", icon:"🎬"}, audio:{label:"Audio", icon:"🎵"},
+  archives:{label:"Archives", icon:"🗜"}, applications:{label:"Applications", icon:"📦"},
+  code:{label:"Code", icon:"💻"}, other:{label:"Other", icon:"📁"},
+};
+function humanSize(n){
+  if (n < 1024) return n + " B";
+  const u = ["KB","MB","GB","TB"]; let i = -1;
+  while (n >= 1024 && i < u.length-1){ n/=1024; i++; }
+  return (i===0?Math.round(n):n.toFixed(n>=100?0:n>=10?1:2)) + " " + u[i];
+}
+function humanDate(d){
+  const dt = new Date(d + "T12:00:00");
+  return dt.toLocaleDateString("en-US",{month:"short",day:"numeric"}) +
+    " · " + dt.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"});
+}
+const fmt = { size: f => humanSize(f[2]), modified: f => humanDate(f[3]) };
+
+/* ---------- state ---------- */
+const state = {
+  tab: "dashboard",
+  theme: "light",
+  accent: "#6750A4",
+  scanned: false,
+  scanDuration: 1.4,
+  organized: false,
+  history: [],            // {when,file,from,to,action,status}
+  appliedCount: 0,
+  sortCol: null, sortAsc: true,
+  dupGroups: null,        // [[files...], ...] same-content groups
+  largeFiles: null,       // files >= threshold
+  largeThreshold: 0,
+  rules: [
+    {id:1, name:"Invoice files", field:"File name", cond:"contains", value:"invoice", target:"Documents/Invoices", enabled:true},
+    {id:2, name:"PDF documents", field:"Extension", cond:"is", value:"pdf", target:"Documents/PDF", enabled:true},
+    {id:3, name:"Screenshots", field:"File name", cond:"starts with", value:"Screenshot", target:"Images/Screenshots", enabled:false},
+  ],
+};
+
+/* ---------- accents ---------- */
+const ACCENTS = [
+  ["#6750A4", "#D0BCFF"], ["#0B57D0", "#A8C7FA"], ["#006A60", "#A6DBD3"],
+  ["#2E7D32", "#A9D5A5"], ["#B3261E", "#F2B8B5"], ["#E8710A", "#FFB77C"],
+  ["#C2185B", "#FFB1C8"],
+];
+function applyTheme(){
+  let mode = state.theme;
+  if (mode === "system") mode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = mode;
+  const [light, dark] = ACCENTS.find(a => a[0] === state.accent) || ACCENTS[0];
+  document.documentElement.style.setProperty("--primary", mode === "dark" ? dark : light);
+  document.querySelectorAll("#theme-seg button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === state.theme));
+}
+function buildSwatches(){
+  const wrap = document.getElementById("swatches");
+  wrap.innerHTML = "";
+  ACCENTS.forEach(([light]) => {
+    const b = document.createElement("button");
+    b.className = "swatch" + (light === state.accent ? " active" : "");
+    b.style.background = light;
+    b.title = light;
+    b.textContent = light === state.accent ? "✓" : "";
+    b.onclick = () => { state.accent = light; buildSwatches(); applyTheme(); };
+    wrap.appendChild(b);
+  });
+}
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll(".rail-btn").forEach(b => b.onclick = () => {
+  state.tab = b.dataset.tab;
+  document.querySelectorAll(".rail-btn").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x.id === "tab-" + state.tab));
+});
+document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+  document.querySelector(`.rail-btn[data-tab="${b.dataset.go}"]`).click();
+});
+document.querySelectorAll("[data-coming]").forEach(b => b.onclick = () =>
+  toast(b.dataset.coming + " is part of a later milestone."));
+
+/* ---------- dashboard ---------- */
+function renderDashboard(){
+  document.getElementById("d-files").textContent = state.scanned ? FILES.length : 0;
+  document.getElementById("d-storage").textContent = state.scanned
+    ? humanSize(FILES.reduce((s,f)=>s+f[2],0)) : "0 B";
+  document.getElementById("d-organized").textContent = state.appliedCount;
+  document.getElementById("d-dup").textContent = state.dupGroups ? state.dupGroups.reduce((s,g)=>s+g.length,0) : "—";
+  document.getElementById("d-large").textContent = state.largeFiles ? state.largeFiles.length : "—";
+  if (state.scanned) {
+    document.getElementById("dash-sub").textContent =
+      "Overview of Downloads (" + humanSize(FILES.reduce((s,f)=>s+f[2],0)) + ")";
+    document.getElementById("d-last").textContent = "Aug 15, 2026";
+    document.getElementById("d-tag-last").textContent = FILES.length + " files";
+    const counts = {};
+    FILES.forEach(f => counts[f[1]] = (counts[f[1]]||0)+1);
+    document.getElementById("d-cats").innerHTML = Object.entries(counts)
+      .map(([k,v]) => `<span class="chip">${CATS[k].icon} ${CATS[k].label} · ${v}</span>`).join("");
+  }
+}
+
+/* ---------- scan ---------- */
+function fillScanTable(){
+  let rows = [...FILES];
+  const q = document.getElementById("scan-filter").value.trim().toLowerCase();
+  const cat = document.getElementById("scan-cat").value;
+  if (q) rows = rows.filter(f => f[0].toLowerCase().includes(q));
+  if (cat) rows = rows.filter(f => f[1] === cat);
+  const col = state.sortCol;
+  if (col) {
+    rows.sort((a,b) => {
+      let r;
+      if (col === "name") r = a[0].localeCompare(b[0]);
+      else if (col === "cat") r = CATS[a[1]].label.localeCompare(CATS[b[1]].label);
+      else if (col === "size") r = a[2]-b[2];
+      else r = a[3].localeCompare(b[3]);
+      return state.sortAsc ? r : -r;
+    });
+  }
+  document.querySelectorAll("thead th .arrow").forEach(s => s.textContent = "");
+  if (col) {
+    const th = document.querySelector(`thead th[data-sort="${col}"] .arrow`);
+    if (th) th.textContent = state.sortAsc ? " ▲" : " ▼";
+  }
+  document.getElementById("scan-tbody").innerHTML = rows.map(f => {
+    const c = CATS[f[1]];
+    return `<tr>
+      <td>${f[0]}</td>
+      <td>${c.icon} ${c.label}</td>
+      <td class="num">${fmt.size(f)}</td>
+      <td>${fmt.modified(f)}</td>
+    </tr>`;
+  }).join("");
+  document.getElementById("scan-foot").textContent =
+    `Showing ${rows.length} of ${FILES.length} files`;
+}
+document.querySelectorAll("thead th[data-sort]").forEach(th => th.onclick = () => {
+  const col = th.dataset.sort;
+  if (state.sortCol === col) state.sortAsc = !state.sortAsc; else { state.sortCol = col; state.sortAsc = true; }
+  fillScanTable();
+});
+document.getElementById("scan-filter").oninput = fillScanTable;
+document.getElementById("scan-cat").onchange = fillScanTable;
+document.getElementById("btn-browse").onclick = () => {
+  const el = document.getElementById("scan-path"); el.focus(); el.select();
+};
+document.getElementById("btn-scan").onclick = () => runScan();
+document.getElementById("btn-browse-default").onclick = () => {
+  document.getElementById("set-default").textContent = "C:\\Users\\You\\Downloads";
+  document.getElementById("btn-clear-default").style.display = "";
+  toast("Default folder set to Downloads");
+};
+document.getElementById("btn-clear-default").onclick = () => {
+  document.getElementById("set-default").textContent = "Not set";
+  document.getElementById("btn-clear-default").style.display = "none";
+};
+
+function runScan(){
+  if (state.scanned) { toast("Re-scanning Downloads…"); }
+  const wrap = document.getElementById("scan-progress-wrap");
+  const bar = document.getElementById("scan-progress");
+  const label = document.getElementById("scan-progress-label");
+  wrap.style.display = "block";
+  document.getElementById("btn-scan").disabled = true;
+  const total = FILES.reduce((s,f)=>s+f[2],0);
+  const start = performance.now();
+  const step = () => {
+    const p = Math.min(1, (performance.now()-start)/1200);
+    const n = Math.round(p * FILES.length), b = Math.round(p * total);
+    bar.style.width = (p*100) + "%";
+    label.textContent = `Scanning… ${n} files (${humanSize(b)})`;
+    if (p < 1) requestAnimationFrame(step);
+    else {
+      wrap.style.display = "none";
+      document.getElementById("btn-scan").disabled = false;
+      state.scanned = true;
+      document.getElementById("scan-results").style.display = "block";
+      document.getElementById("scan-empty").style.display = "none";
+      document.getElementById("r-files").textContent = FILES.length;
+      document.getElementById("r-size").textContent = humanSize(total);
+      document.getElementById("r-took").textContent = state.scanDuration + " s";
+      fillScanTable();
+      renderDashboard();
+      renderStorage();
+      document.getElementById("org-sub").textContent =
+        "Prepared from the latest scan of Downloads.";
+      toast("Scan complete: " + FILES.length + " files found");
+    }
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- organize ---------- */
+function buildPlan(){
+  const plan = {};
+  FILES.forEach(f => {
+    if (f[1] === "other") return;
+    (plan[f[1]] = plan[f[1]] || []).push(f);
+  });
+  return plan;
+}
+document.getElementById("btn-preview").onclick = () => {
+  if (!state.scanned) { toast("Run a scan first — go to the Scan tab."); return; }
+  document.getElementById("org-prompt").style.display = "none";
+  const wrap = document.getElementById("org-plan");
+  wrap.style.display = "block";
+  const plan = buildPlan();
+  const totalMoves = Object.values(plan).reduce((s,l)=>s+l.length,0);
+  document.getElementById("org-sub").textContent =
+    `Prepared ${totalMoves} move(s) for Downloads — nothing has changed yet.`;
+  wrap.innerHTML = Object.entries(plan).map(([k,list]) => {
+    const c = CATS[k];
+    const t = humanSize(list.reduce((s,f)=>s+f[2],0));
+    return `      <div class="plan-sec">
+      <header>
+        <span class="em">${c.icon}</span>
+        <div><b>${c.label}</b><div class="meta">${list.length} file(s) · ${t}</div></div>
+        <span style="margin-left:auto;color:var(--on-variant)">▾</span>
+      </header>
+      <div class="body">
+        ${list.map(f => `<div class="plan-row">
+            <span>${f[0]}</span>
+            <span class="dest">${humanSize(f[2])} <span class="arr">→</span> ${c.label}/</span>
+          </div>`).join("")}
+      </div>
+    </div>`;
+  }).join("");
+  document.getElementById("org-actions").style.display = "";
+  document.getElementById("btn-apply").style.display = "";
+  document.getElementById("btn-undo").style.display = "none";
+  document.getElementById("btn-rebuild").style.display = "none";
+  document.getElementById("org-message").textContent = "";
+};
+document.getElementById("btn-apply").onclick = () => {
+  const plan = buildPlan();
+  const total = Object.values(plan).reduce((s,l)=>s+l.length,0);
+  const wrap = document.getElementById("org-progress-wrap");
+  const bar = document.getElementById("org-progress");
+  const title = document.getElementById("org-progress-title");
+  const current = document.getElementById("org-progress-current");
+  wrap.style.display = "block";
+  document.getElementById("btn-apply").disabled = true;
+  document.getElementById("btn-undo").style.display = "none";
+  const files = Object.values(plan).flat();
+  const start = performance.now();
+  const step = () => {
+    const p = Math.min(1, (performance.now()-start)/1400);
+    const n = Math.round(p * total);
+    bar.style.width = (p*100)+"%";
+    title.textContent = `Applying… ${n} / ${total}`;
+    current.textContent = files[Math.min(n, files.length-1)][0];
+    if (p < 1) requestAnimationFrame(step);
+    else {
+      wrap.style.display = "none";
+      document.getElementById("btn-apply").disabled = false;
+      state.organized = true;
+      state.appliedCount += total;
+      const now = new Date();
+      state.history.unshift(...Object.values(plan).flat().map(f => ({
+        when: now, file: f[0],
+        from: "Downloads/" + f[0],
+        to: "Downloads/" + CATS[f[1]].label + "/" + f[0],
+        action: "organize", status: "completed",
+      })));
+      renderHistory();
+      renderDashboard();
+      document.getElementById("btn-apply").style.display = "none";
+      document.getElementById("btn-undo").style.display = "";
+      document.getElementById("btn-rebuild").style.display = "none";
+      document.getElementById("org-message").innerHTML =
+        `<span class="badge-ok">✔ Moved ${total} file(s) into category folders.</span>`;
+      document.getElementById("org-sub").textContent =
+        "Moved " + total + " file(s) into category folders in Downloads.";
+      toast("Applied " + total + " move(s) — undo available");
+    }
+  };
+  requestAnimationFrame(step);
+};
+document.getElementById("btn-undo").onclick = () => {
+  const undone = state.history.filter(h => h.action === "organize");
+  undone.forEach(h => h.action = "undo");
+  state.appliedCount -= undone.length;
+  renderHistory(); renderDashboard();
+  document.getElementById("btn-undo").style.display = "none";
+  document.getElementById("btn-apply").style.display = "";
+  document.getElementById("org-message").innerHTML =
+    `<span class="badge-ok">↩ Undid ${undone.length} file move(s).</span>`;
+  document.getElementById("org-sub").textContent =
+    "Undid " + undone.length + " file move(s) — files are back where they started.";
+  toast("Undid " + undone.length + " move(s)");
+};
+
+/* ---------- history ---------- */
+function renderHistory(){
+  const count = state.history.filter(h => h.action === "organize").length;
+  document.getElementById("hist-count").textContent = count;
+  document.getElementById("btn-hist-undo").disabled = count === 0;
+  const wrap = document.getElementById("hist-table-wrap");
+  const empty = document.getElementById("hist-empty");
+  if (state.history.length === 0) { wrap.style.display = "none"; empty.style.display = ""; return; }
+  wrap.style.display = ""; empty.style.display = "none";
+  document.getElementById("hist-tbody").innerHTML = state.history.map(h => `
+    <tr>
+      <td>${h.when.toLocaleDateString("en-US",{month:"short",day:"numeric"})} · ${h.when.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</td>
+      <td>${h.file}</td>
+      <td>…\\${h.from.split("\\").pop()} → …\\${h.to.split("\\").pop()}</td>
+      <td>${h.action === "undo" ? "↩ Undo" : "📂 Organize"}</td>
+      <td class="${h.status === "completed" ? "badge-ok" : "badge-err"}">${h.status === "completed" ? "Completed" : "Failed"}</td>
+    </tr>`).join("");
+}
+document.getElementById("btn-hist-undo").onclick = () => {
+  const undone = state.history.filter(h => h.action === "organize");
+  undone.forEach(h => h.action = "undo");
+  state.appliedCount -= undone.length;
+  renderHistory(); renderDashboard();
+  toast("Undid " + undone.length + " move(s)");
+};
+
+/* ---------- settings wiring ---------- */
+document.querySelectorAll("#theme-seg button").forEach(b => b.onclick = () => {
+  state.theme = b.dataset.mode; applyTheme();
+});
+
+/* ---------- duplicates ---------- */
+document.getElementById("btn-dup-run").onclick = () => {
+  if (!state.scanned) { toast("Run a scan first — go to the Scan tab."); return; }
+  const bySize = {};
+  FILES.forEach(f => { (bySize[f[2]] = bySize[f[2]] || []).push(f); });
+  const groups = Object.values(bySize).filter(g => g.length > 1);
+  state.dupGroups = groups;
+  document.getElementById("dup-empty").style.display = "none";
+  document.getElementById("dup-results").style.display = "block";
+  const dupCount = groups.reduce((s,g)=>s+g.length,0);
+  const wasted = groups.reduce((s,g)=>s+g[0][2]*(g.length-1),0);
+  document.getElementById("dup-summary").innerHTML =
+    `<span>⧉ <b>Groups:</b> ${groups.length}</span> <span style="margin-left:22px">📄 <b>Duplicate files:</b> ${dupCount}</span>` +
+    `<span style="margin-left:22px">💾 <b>Wasted space:</b> ${humanSize(wasted)}</span>` +
+    `<span style="margin-left:22px"><button class="btn btn-outline" id="btn-dup-del" style="padding:6px 14px">🗑 Delete selected</button></span>`;
+  document.getElementById("dup-groups").innerHTML = groups.map((g,i) => `
+    <div class="card" style="margin-top:12px; padding:14px 16px">
+      <div class="row" style="justify-content:space-between">
+        <b>${g.length} identical copies</b>
+        <span style="color:var(--on-variant)">${humanSize(g[0][2])} · SHA-256 a3f9…${(i+17).toString(16)}</span>
+      </div>
+      ${g.map(f => `<div class="row" style="gap:10px; margin-top:10px; align-items:center">
+        <input type="checkbox" class="dup-check" value="${f[0]}">
+        <span>${f[0]}</span>
+        <span style="color:var(--on-variant); font-size:12px; overflow:hidden; text-overflow:ellipsis">C:\\Users\\You\\Downloads\\${f[0]}</span>
+      </div>`).join("")}
+    </div>`).join("");
+  document.getElementById("btn-dup-del").onclick = () => {
+    const picked = [...document.querySelectorAll(".dup-check:checked")].map(c => c.value);
+    if (!picked.length) { toast("Select duplicate files to delete first."); return; }
+    if (!confirm("Permanently delete " + picked.length + " file(s)? This cannot be undone.")) return;
+    FILES.splice(0, FILES.length, ...FILES.filter(f => !picked.includes(f[0])));
+    toast("Deleted " + picked.length + " file(s) from the demo data");
+    document.getElementById("btn-dup-run").click();
+    renderDashboard();
+  };
+  renderDashboard();
+  toast("Found " + groups.length + " duplicate group(s)");
+};
+
+/* ---------- large files ---------- */
+let largePreset = null;
+document.querySelectorAll(".large-preset").forEach(b => b.onclick = () => {
+  largePreset = +b.dataset.mb;
+  document.querySelectorAll(".large-preset").forEach(x => x.classList.toggle("active", x === b));
+  document.getElementById("large-custom").value = "";
+});
+document.getElementById("btn-large-run").onclick = () => {
+  if (!state.scanned) { toast("Run a scan first — go to the Scan tab."); return; }
+  let mb = largePreset;
+  const custom = parseFloat(document.getElementById("large-custom").value);
+  if (custom > 0) mb = custom;
+  if (!mb || mb <= 0) { toast("Pick a preset or enter a custom size."); return; }
+  state.largeThreshold = mb * BYTES.MB;
+  state.largeFiles = FILES.filter(f => f[2] >= state.largeThreshold)
+    .sort((a,b) => b[2]-a[2]);
+  const empty = document.getElementById("large-empty");
+  const results = document.getElementById("large-results");
+  if (state.largeFiles.length === 0) {
+    empty.style.display = ""; empty.querySelector("p").textContent =
+      "No file is at least " + humanSize(state.largeThreshold) + ".";
+    results.style.display = "none";
+  } else {
+    empty.style.display = "none"; results.style.display = "block";
+    document.getElementById("large-tbody").innerHTML = state.largeFiles.map(f => `
+      <tr>
+        <td>${f[0]}</td>
+        <td class="num">${humanSize(f[2])}</td>
+        <td>${humanDate(f[3])}</td>
+        <td><span style="cursor:pointer" onclick="toast('Opening ' + '${f[0]}' + '…')">↗</span>
+            <span style="cursor:pointer; margin-left:10px" onclick="toast('Revealed in Explorer')">🗀</span>
+            <span style="cursor:pointer; margin-left:10px; color:var(--error)" onclick="if(confirm('Permanently delete ${f[0]}?')){ toast('Deleted (demo)'); }">🗑</span></td>
+      </tr>`).join("");
+  }
+  renderDashboard();
+  toast("Found " + state.largeFiles.length + " file(s) ≥ " + humanSize(state.largeThreshold));
+};
+
+/* ---------- rules ---------- */
+function renderRules(){
+  const empty = document.getElementById("rules-empty");
+  const list = document.getElementById("rules-list");
+  if (state.rules.length === 0) { empty.style.display = ""; list.style.display = "none"; return; }
+  empty.style.display = "none"; list.style.display = "block";
+  list.innerHTML = state.rules.map(r => `
+    <div class="card" style="padding:4px 16px; margin-top:12px; display:flex; align-items:center; gap:14px; opacity:${r.enabled?1:.55}">
+      <span style="font-size:18px">${r.enabled ? "📏" : "📏"}</span>
+      <div style="flex:1">
+        <b>${r.name}</b>
+        <div style="font-size:12px; color:var(--on-variant)">IF ${r.field.toLowerCase()} ${r.cond} "${r.value}" THEN move to ${r.target}</div>
+      </div>
+      <label class="toggle"><input type="checkbox" ${r.enabled?"checked":""} data-rule-id="${r.id}"><span class="track"></span></label>
+      <button class="btn btn-outline" style="padding:6px 12px" data-rule-test="${r.id}">🧪 Test</button>
+      <button class="btn btn-outline" style="padding:6px 12px" data-rule-edit="${r.id}">✎</button>
+      <button class="btn btn-outline" style="padding:6px 12px; color:var(--error)" data-rule-del="${r.id}">🗑</button>
+    </div>`).join("");
+  list.querySelectorAll("[data-rule-id]").forEach(t => t.onchange = () => {
+    const r = state.rules.find(x => x.id === +t.dataset.ruleId);
+    r.enabled = t.checked; renderRules();
+  });
+  list.querySelectorAll("[data-rule-test]").forEach(b => b.onclick = () => {
+    const r = state.rules.find(x => x.id === +b.dataset.ruleTest);
+    const m = state.scanned ? FILES.filter(f => r.cond === "is" ? f[0].toLowerCase().endsWith(r.value) : f[0].toLowerCase().includes(r.value)).length : 0;
+    toast("\"" + r.name + "\" matches " + m + " file(s) in the latest scan");
+  });
+  list.querySelectorAll("[data-rule-edit]").forEach(b => b.onclick = () =>
+    toast("Editing rules is a one-click dialog in the real app — this is a static mockup."));
+  list.querySelectorAll("[data-rule-del]").forEach(b => b.onclick = () => {
+    state.rules = state.rules.filter(x => x.id !== +b.dataset.ruleDel);
+    renderRules(); toast("Rule deleted");
+  });
+}
+document.getElementById("btn-rule-add").onclick = () => {
+  state.rules.push({
+    id: Math.max(0, ...state.rules.map(r=>r.id)) + 1,
+    name: "New rule", field: "File name", cond: "contains",
+    value: "draft", target: "Documents/Drafts", enabled: true,
+  });
+  renderRules(); toast("Added a draft rule (static mockup)");
+};
+
+/* ---------- storage ---------- */
+function renderStorage(){
+  if (!state.scanned) { document.getElementById("storage-empty").style.display = ""; document.getElementById("storage-body").style.display = "none"; return; }
+  document.getElementById("storage-empty").style.display = "none";
+  document.getElementById("storage-body").style.display = "block";
+  document.getElementById("storage-sub").textContent =
+    FILES.length + " files · " + humanSize(FILES.reduce((s,f)=>s+f[2],0)) + " in Downloads";
+  const byCat = {};
+  FILES.forEach(f => byCat[f[1]] = (byCat[f[1]] || 0) + f[2]);
+  const total = Object.values(byCat).reduce((s,v)=>s+v,0);
+  document.getElementById("storage-bars").innerHTML = Object.entries(byCat).map(([k,v]) => `
+    <div class="row" style="gap:12px; margin:8px 0; align-items:center">
+      <span style="width:130px">${CATS[k].icon} ${CATS[k].label}</span>
+      <div style="flex:1; height:12px; border-radius:6px; background:var(--surface-high)">
+        <div style="width:${Math.max(2, v/total*100)}%; height:100%; border-radius:6px; background:var(--primary)"></div>
+      </div>
+      <span style="width:90px; text-align:right">${humanSize(v)}</span>
+      <span style="width:80px; text-align:right; font-size:12px; color:var(--on-variant)">${FILES.filter(f=>f[1]===k).length} files</span>
+    </div>`).join("");
+  const top = [...FILES].sort((a,b)=>b[2]-a[2]).slice(0,5);
+  document.getElementById("storage-top").innerHTML = top.map((f,i) => `
+    <div class="row" style="padding:10px 16px; gap:12px; align-items:center">
+      <span style="color:var(--on-variant)">${i+1}</span>
+      <span style="flex:1; overflow:hidden; text-overflow:ellipsis">${f[0]}</span>
+      <span>${humanSize(f[2])}</span>
+    </div>`).join("");
+}
+
+/* ---------- init ---------- */
+buildSwatches();
+applyTheme();
+renderDashboard();
+renderHistory();
+renderRules();
+renderStorage();
+// seed the category dropdown
+Object.entries(CATS).forEach(([k,v]) => {
+  const o = document.createElement("option"); o.value = k; o.textContent = v.icon + " " + v.label;
+  document.getElementById("scan-cat").appendChild(o);
+});
+</script>
+</body>
+</html>

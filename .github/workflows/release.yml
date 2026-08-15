@@ -1,0 +1,62 @@
+name: Build Windows Release
+
+# Builds FileOrganizerPro-Setup.exe and FileOrganizerPro-Portable.zip on a
+# GitHub-hosted Windows runner (VS 2022 + C++ toolchain is preinstalled) and
+# attaches them to a GitHub Release when a version tag is pushed.
+#
+#   git tag v1.0.0 && git push origin v1.0.0
+#
+# Or trigger manually from the Actions tab (artifacts are uploaded but no
+# Release is created for manual runs).
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Enable Windows desktop
+        run: flutter config --enable-windows-desktop
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+
+      - name: Build release artifacts
+        env:
+          # v1.0.0 -> 1.0.0 (used for the installer metadata)
+          APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name.substring(1) || '1.0.0' }}
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File tool/build_release.ps1
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-artifacts
+          path: |
+            dist/FileOrganizerPro-Setup.exe
+            dist/FileOrganizerPro-Portable.zip
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/FileOrganizerPro-Setup.exe
+            dist/FileOrganizerPro-Portable.zip
+          generate_release_notes: true
