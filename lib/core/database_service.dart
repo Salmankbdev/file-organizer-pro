@@ -26,7 +26,7 @@ class DatabaseService {
     _db = await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 3,
         onCreate: (db, version) async {
           await _createScansTable(db);
           await _createOperationsTable(db);
@@ -35,6 +35,12 @@ class DatabaseService {
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
             await _createRulesTable(db);
+          }
+          if (oldVersion < 3) {
+            await db.execute('ALTER TABLE rules '
+                'ADD COLUMN create_folder INTEGER NOT NULL DEFAULT 1');
+            await db.execute('ALTER TABLE operations '
+                'ADD COLUMN details TEXT');
           }
         },
       ),
@@ -66,7 +72,8 @@ class DatabaseService {
         to_path TEXT NOT NULL,
         action TEXT NOT NULL,
         status TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        details TEXT
       )
     ''');
     await db.execute(
@@ -82,7 +89,8 @@ class DatabaseService {
         condition TEXT NOT NULL,
         value TEXT NOT NULL,
         target_folder TEXT NOT NULL,
-        enabled INTEGER NOT NULL DEFAULT 1
+        enabled INTEGER NOT NULL DEFAULT 1,
+        create_folder INTEGER NOT NULL DEFAULT 1
       )
     ''');
   }
@@ -136,6 +144,7 @@ class DatabaseService {
         'action': op.action,
         'status': op.status,
         'created_at': op.createdAt.toIso8601String(),
+        'details': op.details,
       });
     }
     await batch.commit(noResult: true);
@@ -180,6 +189,7 @@ class DatabaseService {
       'value': rule.value,
       'target_folder': rule.targetFolder,
       'enabled': rule.enabled ? 1 : 0,
+      'create_folder': rule.createFolder ? 1 : 0,
     });
   }
 
@@ -191,6 +201,7 @@ class DatabaseService {
       'value': rule.value,
       'target_folder': rule.targetFolder,
       'enabled': rule.enabled ? 1 : 0,
+      'create_folder': rule.createFolder ? 1 : 0,
     }, where: 'id = ?', whereArgs: [rule.id]);
   }
 

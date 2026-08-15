@@ -10,6 +10,7 @@ import '../models/duplicate_group.dart';
 import '../models/move_operation.dart';
 import '../models/scanned_file.dart';
 import '../models/scan_result.dart';
+import '../services/archive_service.dart';
 import '../services/demo_service.dart';
 import '../services/duplicate_service.dart';
 import '../services/organizer_service.dart';
@@ -32,11 +33,13 @@ class AppController extends ChangeNotifier {
     OrganizerService? organizer,
     DuplicateService? duplicateFinder,
     DemoService? demo,
+    ArchiveService? archiveService,
   })  : database = database ?? DatabaseService.instance,
         scanner = scanner ?? const ScannerService(),
         organizer = organizer ?? const OrganizerService(),
         duplicateFinder = duplicateFinder ?? const DuplicateService(),
-        demo = demo ?? const DemoService();
+        demo = demo ?? const DemoService(),
+        archiveService = archiveService ?? const ArchiveService();
 
   final SettingsService settings;
   final DatabaseService database;
@@ -44,6 +47,7 @@ class AppController extends ChangeNotifier {
   final OrganizerService organizer;
   final DuplicateService duplicateFinder;
   final DemoService demo;
+  final ArchiveService archiveService;
 
   // --- Scan state ---
   ScanPhase scanPhase = ScanPhase.idle;
@@ -76,6 +80,15 @@ class AppController extends ChangeNotifier {
   int largeThresholdBytes = 0;
   bool _findingLarge = false;
 
+  // --- Archive extraction state ---
+  FindPhase extractPhase = FindPhase.idle;
+  List<ExtractPlanEntry> extractPlan = [];
+  ExtractResult? extractResult;
+  int extractProgress = 0;
+  int extractTotal = 0;
+  String extractCurrent = '';
+  bool _extracting = false;
+
   // --- Rules state ---
   List<CustomRule> rules = [];
 
@@ -106,6 +119,9 @@ class AppController extends ChangeNotifier {
     duplicatePhase = FindPhase.idle;
     largeFiles = null;
     largePhase = FindPhase.idle;
+    extractPlan = [];
+    extractPhase = FindPhase.idle;
+    extractResult = null;
     notifyListeners();
 
     try {
@@ -141,7 +157,9 @@ class AppController extends ChangeNotifier {
   bool get canOrganize =>
       currentScan != null && currentScan!.folderPath.isNotEmpty;
 
-  /// Plans the reorganization of the current scan, if allowed.
+  /// Plans the reorganization of the current scan, if allowed. Rules whose
+  /// absolute target points into a protected system folder are dropped when
+  /// system-folder protection is enabled.
   String? preparePlan() {
     final scan = currentScan;
     if (scan == null) return 'Run a scan first.';
@@ -150,12 +168,24 @@ class AppController extends ChangeNotifier {
       return 'This folder is protected. Enable "System-folder protection" '
           'in Settings to allow organizing it.';
     }
-    currentPlan = organizer.buildPlan(scan, rules: rules);
+    currentPlan = organizer.buildPlan(scan, rules: _safeRules());
     organizePhase = OrganizePhase.idle;
     lastApply = null;
     organizeMessage = null;
     notifyListeners();
     return null;
+  }
+
+  /// Rules with [CustomRule.createFolder] targets, minus any rule whose
+  /// absolute target is a protected system folder (when protection is on).
+  List<CustomRule> _safeRules() {
+    if (!settings.protectSystemFolders) return rules;
+    return [
+      for (final rule in rules)
+        if (!OrganizerService.isProtectedTarget(
+            OrganizerService.ruleTargetDir('', rule)))
+          rule,
+    ];
   }
 
   Future<void> applyPlan() async {
@@ -204,6 +234,15 @@ class AppController extends ChangeNotifier {
 
   Future<String?> undoLast() async {
     final batch = await database.latestBatchOperations();
+    if (batch.isEmpty) return 'Nothing to undo.';
+    final latest = batch.firstWhere(
+      (op) => op.status == 'completed',
+      orElse: () => batch.first,
+    );
+    if (latest.action == 'extract') {
+      return _undoExtraction(batch);
+    }
+
     final organizes =
         batch.where((op) => op.action == 'organize').toList();
     if (organizes.isEmpty) return 'Nothing to undo.';
@@ -221,6 +260,48 @@ class AppController extends ChangeNotifier {
         ? 'Undid ${result.undone} file move(s).'
         : 'Undid ${result.undone} of ${organizes.length} file move(s) '
             '(${result.failed} could not be restored).';
+  }
+
+  /// Reverses an extraction batch: removes the files the archive wrote and
+  /// any of its folders that are now empty, then records the undo.
+  Future<String?> _undoExtraction(List<MoveOperation> batch) async {
+    final extractOps =
+        batch.where((op) => op.action == 'extract').toList();
+    if (extractOps.isEmpty) return 'Nothing to undo.';
+
+    var removedFiles = 0;
+    final undoOps = <MoveOperation>[];
+    for (final op in extractOps) {
+      final createdFiles = <String>[];
+      final createdDirs = <String>[];
+      if (op.details != null) {
+        try {
+          final decoded = jsonDecode(op.details!)
+              as Map<String, dynamic>;
+          createdFiles.addAll(
+              ((decoded['files'] as List?) ?? []).cast<String>());
+          createdDirs.addAll(
+              ((decoded['dirs'] as List?) ?? []).cast<String>());
+        } catch (_) {
+          // Corrupt details — nothing we can safely remove.
+        }
+      }
+      removedFiles += await ArchiveService.undoCleanup(
+          createdFiles, createdDirs);
+      undoOps.add(MoveOperation(
+        batchId: op.batchId,
+        fileName: op.fileName,
+        fromPath: op.fromPath,
+        toPath: op.toPath,
+        action: 'extract_undo',
+        status: 'completed',
+        createdAt: DateTime.now(),
+      ));
+    }
+    await database.insertOperations(undoOps);
+    await refreshHistory();
+    return 'Removed $removedFiles extracted file(s) and cleaned up empty '
+        'folders.';
   }
 
   // --- Duplicate finder --------------------------------------------------
@@ -305,6 +386,73 @@ class AppController extends ChangeNotifier {
     largePhase = FindPhase.done;
     _findingLarge = false;
     notifyListeners();
+  }
+
+  // --- Archive extraction ------------------------------------------------
+
+  /// Builds (but does not run) the extraction plan for the current scan.
+  String? prepareExtract() {
+    final scan = currentScan;
+    if (scan == null) return 'Run a scan first.';
+    if (settings.protectSystemFolders &&
+        ScannerService.isProtected(scan.folderPath)) {
+      return 'This folder is protected. Enable "System-folder protection" '
+          'in Settings to allow extracting archives.';
+    }
+    extractPlan = archiveService.buildPlan(scan);
+    extractPhase = FindPhase.idle;
+    extractResult = null;
+    notifyListeners();
+    return null;
+  }
+
+  Future<void> applyExtract() async {
+    final plan = extractPlan;
+    if (plan.isEmpty || _extracting) return;
+    _extracting = true;
+    extractPhase = FindPhase.running;
+    extractProgress = 0;
+    extractTotal = plan.length;
+    extractCurrent = '';
+    extractResult = null;
+    notifyListeners();
+
+    try {
+      final result = await archiveService.extract(
+        plan,
+        onProgress: (done, total, current) {
+          extractProgress = done;
+          extractTotal = total;
+          extractCurrent = current;
+          notifyListeners();
+        },
+      );
+      final batchId = await database.nextBatchId();
+      final ops = [
+        for (final entry in plan)
+          MoveOperation(
+            batchId: batchId,
+            fileName: entry.file.name,
+            fromPath: entry.file.path,
+            toPath: entry.targetDir,
+            action: 'extract',
+            status: 'completed',
+            createdAt: DateTime.now(),
+            details: jsonEncode({
+              'files': result.createdFiles[entry.file.path] ?? [],
+              'dirs': result.createdDirs,
+            }),
+          ),
+      ];
+      await database.insertOperations(ops);
+      extractResult = result;
+      extractPhase = FindPhase.done;
+    } catch (e) {
+      extractPhase = FindPhase.idle;
+    } finally {
+      _extracting = false;
+      notifyListeners();
+    }
   }
 
   // --- Rules -------------------------------------------------------------

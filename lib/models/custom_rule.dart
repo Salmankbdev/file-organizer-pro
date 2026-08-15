@@ -39,6 +39,7 @@ class CustomRule {
     required this.value,
     required this.targetFolder,
     this.enabled = true,
+    this.createFolder = true,
   });
 
   final int? id;
@@ -49,10 +50,17 @@ class CustomRule {
   /// The text to match against (extension without dot for [RuleField.extension]).
   final String value;
 
-  /// Destination relative to the scanned folder, e.g. `Documents/Invoices`.
+  /// Destination for matching files. Relative paths are resolved inside the
+  /// scanned folder (e.g. `Documents/Invoices`); absolute paths (e.g.
+  /// `D:/Invoices`) are used as-is and must not be a protected system folder.
   final String targetFolder;
 
   final bool enabled;
+
+  /// When false, matching files are only routed to [targetFolder] if the
+  /// folder already exists; otherwise they fall through to the default
+  /// category mapping (the rule never creates new folders).
+  final bool createFolder;
 
   CustomRule copyWith({
     int? id,
@@ -62,6 +70,7 @@ class CustomRule {
     String? value,
     String? targetFolder,
     bool? enabled,
+    bool? createFolder,
   }) =>
       CustomRule(
         id: id ?? this.id,
@@ -71,6 +80,7 @@ class CustomRule {
         value: value ?? this.value,
         targetFolder: targetFolder ?? this.targetFolder,
         enabled: enabled ?? this.enabled,
+        createFolder: createFolder ?? this.createFolder,
       );
 
   /// Whether [file] satisfies this rule.
@@ -105,5 +115,6 @@ class CustomRule {
         value: row['value'] as String,
         targetFolder: row['target_folder'] as String,
         enabled: (row['enabled'] as int) == 1,
+        createFolder: ((row['create_folder'] as int?) ?? 1) == 1,
       );
 }

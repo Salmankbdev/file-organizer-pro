@@ -9,6 +9,7 @@ class MoveOperation {
     required this.action,
     required this.status,
     required this.createdAt,
+    this.details,
   });
 
   final int? id;
@@ -29,6 +30,10 @@ class MoveOperation {
 
   final DateTime createdAt;
 
+  /// Optional JSON payload. Extraction operations store the created file and
+  /// folder paths so they can be removed again on undo.
+  final String? details;
+
   MoveOperation copyWith({String? status}) => MoveOperation(
         id: id,
         batchId: batchId,
@@ -38,6 +43,7 @@ class MoveOperation {
         action: action,
         status: status ?? this.status,
         createdAt: createdAt,
+        details: details,
       );
 
   factory MoveOperation.fromRow(Map<String, Object?> row) => MoveOperation(
@@ -49,5 +55,6 @@ class MoveOperation {
         action: row['action'] as String,
         status: row['status'] as String,
         createdAt: DateTime.parse(row['created_at'] as String),
+        details: row['details'] as String?,
       );
 }

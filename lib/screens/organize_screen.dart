@@ -6,6 +6,8 @@ import '../models/category.dart';
 import '../services/organizer_service.dart';
 import '../widgets/common.dart';
 
+enum _Mode { organize, extract }
+
 class OrganizeScreen extends StatefulWidget {
   const OrganizeScreen({super.key});
 
@@ -14,13 +16,13 @@ class OrganizeScreen extends StatefulWidget {
 }
 
 class _OrganizeScreenState extends State<OrganizeScreen> {
+  _Mode _mode = _Mode.organize;
   String? _planError;
+  String? _extractError;
 
   @override
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
-    final plan = controller.currentPlan;
-    final scan = controller.currentScan;
 
     return Scaffold(
       body: SafeArea(
@@ -33,92 +35,293 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
                   style: Theme.of(context).textTheme.headlineMedium),
               const SizedBox(height: 4),
               Text(
-                plan == null
-                    ? 'Preview how files would be sorted into category folders, '
-                        'then apply the changes. Every move can be undone.'
-                    : 'Prepared ${plan.moves.length} move(s) for '
-                        '${_folderName(plan.rootPath)}',
+                _mode == _Mode.organize
+                    ? 'Preview how files would be sorted into category '
+                        'folders, then apply the changes. Every move can be '
+                        'undone.'
+                    : 'Unpack zip, tar and gz archives into an Extracted/ '
+                        'folder — safely, with undo.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 16),
-
-              if (scan == null)
-                const Expanded(
-                  child: EmptyState(
-                    icon: Icons.folder_open,
-                    title: 'Run a scan first',
-                    message:
-                        'Organize works on the results of the latest scan. '
-                        'Go to the Scan screen and scan a folder.',
+              SegmentedButton<_Mode>(
+                segments: const [
+                  ButtonSegment(
+                    value: _Mode.organize,
+                    icon: Icon(Icons.drive_file_move_outlined),
+                    label: Text('Organize files'),
                   ),
-                )
-              else if (_planError != null)
-                _ErrorCard(message: _planError!)
-              else if (plan == null)
-                Expanded(
-                  child: Column(
-                    children: [
-                      const Spacer(),
-                      const EmptyState(
-                        icon: Icons.preview_outlined,
-                        title: 'Ready to preview',
-                        message:
-                            'Build a move plan from the latest scan. '
-                            'Nothing is changed until you apply it.',
-                      ),
-                      const SizedBox(height: 24),
-                      FilledButton.icon(
-                        onPressed: () {
-                          final error = controller.preparePlan();
-                          setState(() => _planError = error);
-                          if (error != null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error)));
-                          }
-                        },
-                        icon: const Icon(Icons.preview_outlined),
-                        label: const Text('Preview changes'),
-                      ),
-                      const Spacer(),
-                    ],
+                  ButtonSegment(
+                    value: _Mode.extract,
+                    icon: Icon(Icons.unarchive_outlined),
+                    label: Text('Extract archives'),
                   ),
-                )
-              else ...[
-                if (controller.organizePhase == OrganizePhase.applying)
-                  _ApplyProgress(
-                    done: controller.organizeProgress,
-                    total: controller.organizeTotal,
-                    current: controller.organizeCurrentFile,
-                  )
-                else
-                  Expanded(child: _PlanView(plan: plan)),
-                const SizedBox(height: 12),
-                if (controller.organizeMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(controller.organizeMessage!,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant)),
-                  ),
-                _ActionBar(
-                  applying:
-                      controller.organizePhase == OrganizePhase.applying,
-                  applied: controller.organizePhase == OrganizePhase.done,
-                  onApply: () => _confirmApply(context, controller),
-                  onUndo: () => _undo(context, controller),
-                  onReprepare: () =>
-                      setState(() => _planError = controller.preparePlan()),
-                ),
-              ],
+                ],
+                selected: {_mode},
+                onSelectionChanged: (s) => setState(() => _mode = s.first),
+              ),
+              const SizedBox(height: 16),
+              Expanded(
+                child: _mode == _Mode.organize
+                    ? _buildOrganize(context, controller)
+                    : _buildExtract(context, controller),
+              ),
             ],
           ),
         ),
       ),
     );
   }
+
+  // --- Organize mode -----------------------------------------------------
+
+  Widget _buildOrganize(BuildContext context, AppController controller) {
+    final plan = controller.currentPlan;
+    final scan = controller.currentScan;
+
+    if (scan == null) {
+      return const EmptyState(
+        icon: Icons.folder_open,
+        title: 'Run a scan first',
+        message:
+            'Organize works on the results of the latest scan. Go to the '
+            'Scan screen and scan a folder.',
+      );
+    }
+    if (_planError != null) return _ErrorCard(message: _planError!);
+    if (plan == null) {
+      return Column(
+        children: [
+          const Spacer(),
+          const EmptyState(
+            icon: Icons.preview_outlined,
+            title: 'Ready to preview',
+            message:
+                'Build a move plan from the latest scan. Nothing is changed '
+                'until you apply it.',
+          ),
+          const SizedBox(height: 24),
+          FilledButton.icon(
+            onPressed: () {
+              final error = controller.preparePlan();
+              setState(() => _planError = error);
+              if (error != null) {
+                ScaffoldMessenger.of(context)
+                    .showSnackBar(SnackBar(content: Text(error)));
+              }
+            },
+            icon: const Icon(Icons.preview_outlined),
+            label: const Text('Preview changes'),
+          ),
+          const Spacer(),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: controller.organizePhase == OrganizePhase.applying
+              ? _ApplyProgress(
+                  done: controller.organizeProgress,
+                  total: controller.organizeTotal,
+                  current: controller.organizeCurrentFile,
+                )
+              : _PlanView(plan: plan),
+        ),
+        const SizedBox(height: 12),
+        if (controller.organizeMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(controller.organizeMessage!,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color:
+                        Theme.of(context).colorScheme.onSurfaceVariant)),
+          ),
+        Row(
+          children: [
+            FilledButton.icon(
+              onPressed: controller.organizePhase == OrganizePhase.applying
+                  ? null
+                  : () => _confirmApply(context, controller),
+              icon: const Icon(Icons.check),
+              label: const Text('Apply changes'),
+            ),
+            const SizedBox(width: 12),
+            if (controller.organizePhase == OrganizePhase.done)
+              OutlinedButton.icon(
+                onPressed: controller.organizePhase == OrganizePhase.applying
+                    ? null
+                    : () => _undo(context, controller),
+                icon: const Icon(Icons.undo),
+                label: const Text('Undo this operation'),
+              ),
+            if (controller.organizePhase != OrganizePhase.done) ...[
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: controller.organizePhase == OrganizePhase.applying
+                    ? null
+                    : () => setState(
+                        () => _planError = controller.preparePlan()),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Rebuild plan'),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- Extract mode ------------------------------------------------------
+
+  Widget _buildExtract(BuildContext context, AppController controller) {
+    final scan = controller.currentScan;
+    final plan = controller.extractPlan;
+    final result = controller.extractResult;
+
+    if (scan == null) {
+      return const EmptyState(
+        icon: Icons.folder_open,
+        title: 'Run a scan first',
+        message:
+            'Archive extraction works on the latest scan. Go to the Scan '
+            'screen and scan a folder.',
+      );
+    }
+    if (_extractError != null) return _ErrorCard(message: _extractError!);
+
+    if (controller.extractPhase == FindPhase.running) {
+      return Center(
+        child: Card(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                      'Extracting ${controller.extractProgress} / '
+                      '${controller.extractTotal} archives'),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: controller.extractTotal == 0
+                        ? null
+                        : controller.extractProgress /
+                            controller.extractTotal,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(controller.extractCurrent,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          overflow: TextOverflow.ellipsis)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (plan.isEmpty) {
+      return Column(
+        children: [
+          const Spacer(),
+          const EmptyState(
+            icon: Icons.unarchive_outlined,
+            title: 'No archives to extract',
+            message:
+                'Zip, tar, gz and tgz files in the scanned folder can be '
+                'unpacked here. (7z and rar need external tools and are not '
+                'supported yet.)',
+          ),
+          const Spacer(),
+        ],
+      );
+    }
+
+    final totalSize = plan.fold<int>(0, (s, e) => s + e.file.size);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: ListView(
+            children: [
+              Text(
+                '${plan.length} archive(s) · ${FileUtils.humanSize(totalSize)}',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                child: Column(
+                  children: [
+                    for (final entry in plan)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(Icons.archive_outlined),
+                        title: Text(entry.file.name,
+                            overflow: TextOverflow.ellipsis, maxLines: 1),
+                        subtitle: Text(
+                            '${FileUtils.humanSize(entry.file.size)} → '
+                            '${entry.label}'),
+                        trailing: result == null
+                            ? null
+                            : Icon(
+                                result.failed > 0
+                                    ? Icons.warning_amber_outlined
+                                    : Icons.check_circle_outline,
+                                color: result.failed > 0
+                                    ? Theme.of(context).colorScheme.error
+                                    : Theme.of(context).colorScheme.primary,
+                              ),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (result != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Extracted ${result.filesWritten} file(s) from '
+              '${result.archives} archive(s)'
+              '${result.failed > 0 ? ', ${result.failed} failed' : ''}.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ),
+        Row(
+          children: [
+            FilledButton.icon(
+              onPressed: controller.extractPhase == FindPhase.running
+                  ? null
+                  : () => _confirmExtract(context, controller),
+              icon: const Icon(Icons.unarchive_outlined),
+              label: const Text('Extract archives'),
+            ),
+            if (result != null) ...[
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: () => _undo(context, controller),
+                icon: const Icon(Icons.undo),
+                label: const Text('Undo extraction'),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- Actions -----------------------------------------------------------
 
   Future<void> _confirmApply(BuildContext context, AppController c) async {
     if (c.settings.confirmOrganize) {
@@ -146,17 +349,37 @@ class _OrganizeScreenState extends State<OrganizeScreen> {
     await c.applyPlan();
   }
 
+  Future<void> _confirmExtract(BuildContext context, AppController c) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Extract archives?'),
+        content: Text(
+          'Unpack ${c.extractPlan.length} archive(s) into an Extracted/ '
+          'folder inside the scanned folder?\n\n'
+          'Existing files are never overwritten, and the extraction can be '
+          'undone afterwards.',
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Extract')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await c.applyExtract();
+  }
+
   Future<void> _undo(BuildContext context, AppController c) async {
     final message = await c.undoLast();
     if (context.mounted) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text(message ?? 'Nothing to undo.')));
     }
-  }
-
-  String _folderName(String path) {
-    final parts = path.split(RegExp(r'[\\/]'));
-    return parts.lastWhere((p) => p.isNotEmpty, orElse: () => path);
   }
 }
 
@@ -192,8 +415,7 @@ class _CategorySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalSize =
-        moves.fold<int>(0, (sum, m) => sum + m.file.size);
+    final totalSize = moves.fold<int>(0, (sum, m) => sum + m.file.size);
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: ExpansionTile(
@@ -212,7 +434,7 @@ class _CategorySection extends StatelessWidget {
                   overflow: TextOverflow.ellipsis, maxLines: 1),
               subtitle: Text(
                 '${FileUtils.humanSize(move.file.size)} → '
-                '${category.label}/',
+                '${move.file.category.label}/',
                 overflow: TextOverflow.ellipsis,
                 maxLines: 1,
               ),
@@ -221,7 +443,6 @@ class _CategorySection extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _ApplyProgress extends StatelessWidget {
@@ -261,50 +482,6 @@ class _ApplyProgress extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _ActionBar extends StatelessWidget {
-  const _ActionBar({
-    required this.applying,
-    required this.applied,
-    required this.onApply,
-    required this.onUndo,
-    required this.onReprepare,
-  });
-
-  final bool applying;
-  final bool applied;
-  final VoidCallback onApply;
-  final VoidCallback onUndo;
-  final VoidCallback onReprepare;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        FilledButton.icon(
-          onPressed: applying ? null : onApply,
-          icon: const Icon(Icons.check),
-          label: const Text('Apply changes'),
-        ),
-        const SizedBox(width: 12),
-        if (applied)
-          OutlinedButton.icon(
-            onPressed: applying ? null : onUndo,
-            icon: const Icon(Icons.undo),
-            label: const Text('Undo this operation'),
-          ),
-        if (!applied) ...[
-          const SizedBox(width: 12),
-          OutlinedButton.icon(
-            onPressed: applying ? null : onReprepare,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Rebuild plan'),
-          ),
-        ],
-      ],
     );
   }
 }

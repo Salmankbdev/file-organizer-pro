@@ -19,7 +19,8 @@ organization utility for Windows 10/11. Fully offline, no account required.
   `Code`, `Other`)
 - **📏 Custom rules** — visual rule builder: *IF filename contains "invoice"
   THEN move to Documents/Invoices*, with create, edit, delete, enable/disable,
-  and test-rule support
+  test-rule support, absolute folder targets, and a "create folder if
+  missing" option
 - **👀 Safe preview** — see exactly what will move *before* anything changes
 - **↩️ Undo** — every operation is recorded and can be reversed, even after
   restart
@@ -34,6 +35,9 @@ organization utility for Windows 10/11. Fully offline, no account required.
   folder before you begin
 - **🧪 Demo mode** — generate a disposable sample folder (in the OS temp
   directory) to try every feature without touching your real files
+- **🗜 Archive extraction** — safely unpack zip, tar, gz and tgz files into an
+  `Extracted/` folder with preview, progress and undo; path-traversal entries
+  are refused and existing files are never overwritten
 - **🎨 Appearance** — light/dark mode and accent color
 - **🛡️ Safety first** — system-folder protection, conflict handling with
   `name (1).ext`, delete confirmations, overwrite protection, failure isolation
@@ -160,9 +164,8 @@ tool/
 | MVP 3 — Duplicate Finder (SHA-256) → Large File Finder | ✅ done |
 | MVP 4 — Storage Analytics → History → Settings | ✅ done |
 | MVP 5 — Testing → Docs → Release | ✅ v1.0.0 released |
-
-Planned next: per-rule folder creation options, archive extraction, more
-scan filters (owner, hidden files), and a portable settings export/import.
+| v1.1.0 — Archive extraction + per-rule folder options | ✅ released |Planned next: 7z/rar extraction, more scan filters (owner, hidden files),
+archive-in-archive handling, and a portable settings export/import.
 
 ## 🧪 Testing
 

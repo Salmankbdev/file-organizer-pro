@@ -7,6 +7,7 @@ import '../models/custom_rule.dart';
 import '../models/move_operation.dart';
 import '../models/scanned_file.dart';
 import '../models/scan_result.dart';
+import 'scanner_service.dart';
 
 /// A single planned move.
 class PlannedMove {
@@ -65,23 +66,29 @@ class OrganizerService {
 
   /// Computes the moves needed to organize [scan]'s folder: each file with
   /// a known category is moved into `<root>/<Category>/`, unless a matching
-  /// [rules] entry sends it to a custom subfolder instead (e.g.
-  /// `Documents/Invoices`). Rules are evaluated in order; the first enabled
-  /// match wins.
+  /// [rules] entry sends it to a custom folder instead (e.g.
+  /// `Documents/Invoices`, or an absolute path like `D:/Invoices`). Rules are
+  /// evaluated in order; the first enabled match wins. A rule with
+  /// [CustomRule.createFolder] false only takes effect if its target folder
+  /// already exists — otherwise the file falls through to the default
+  /// category mapping.
   OrganizePlan buildPlan(ScanResult scan,
       {List<CustomRule> rules = const []}) {
     final moves = <PlannedMove>[];
     for (final file in scan.files) {
       final rule = _firstMatchingRule(file, rules);
       if (rule != null) {
-        final targetDir = p.join(scan.folderPath, rule.targetFolder);
-        if (!_alreadyIn(file, targetDir)) {
-          moves.add(PlannedMove(
-            file: file,
-            targetPath: p.join(targetDir, file.name),
-          ));
+        final targetDir = ruleTargetDir(scan.folderPath, rule);
+        if (rule.createFolder || _dirExists(targetDir)) {
+          if (!_alreadyIn(file, targetDir)) {
+            moves.add(PlannedMove(
+              file: file,
+              targetPath: p.join(targetDir, file.name),
+            ));
+          }
+          continue;
         }
-        continue;
+        // Folder missing and rule says don't create it — fall through.
       }
       if (file.category == FileCategory.other) continue;
       final categoryDir = p.join(scan.folderPath, file.category.label);
@@ -93,6 +100,25 @@ class OrganizerService {
     }
     return OrganizePlan(rootPath: scan.folderPath, moves: moves);
   }
+
+  /// Resolves a rule's target to an absolute directory: relative targets are
+  /// joined to the scan root, absolute targets (drive letter, UNC, or leading
+  /// `/` or `\`) are used as-is.
+  static String ruleTargetDir(String scanRoot, CustomRule rule) {
+    final target = rule.targetFolder.trim();
+    if (target.contains(':') ||
+        target.startsWith('/') ||
+        target.startsWith(r'\')) {
+      return target;
+    }
+    return p.join(scanRoot, target);
+  }
+
+  /// True when [path] points into a protected system folder.
+  static bool isProtectedTarget(String path) =>
+      ScannerService.isProtected(path);
+
+  static bool _dirExists(String path) => Directory(path).existsSync();
 
   CustomRule? _firstMatchingRule(
       ScannedFile file, List<CustomRule> rules) {

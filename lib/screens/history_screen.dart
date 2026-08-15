@@ -109,10 +109,18 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   DataRow _operationRow(BuildContext context, MoveOperation op) {
     final scheme = Theme.of(context).colorScheme;
-    final isUndo = op.action == 'undo';
+    final isUndo = op.action == 'undo' || op.action == 'extract_undo';
+    final isExtract = op.action == 'extract';
     final failed = op.status == 'failed';
     final actionColor =
         failed ? scheme.error : (isUndo ? scheme.tertiary : scheme.primary);
+    final (icon, label) = isExtract
+        ? (Icons.unarchive_outlined, 'Extract')
+        : (isUndo && op.action == 'extract_undo'
+            ? (Icons.undo, 'Extract undo')
+            : (isUndo
+                ? (Icons.undo, 'Undo')
+                : (Icons.drive_file_move, 'Organize')));
     return DataRow(cells: [
       DataCell(Text(FileUtils.humanDate(op.createdAt))),
       DataCell(Text(op.fileName, overflow: TextOverflow.ellipsis, maxLines: 1)),
@@ -124,11 +132,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
       DataCell(Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isUndo ? Icons.undo : Icons.drive_file_move,
-              size: 16, color: actionColor),
+          Icon(icon, size: 16, color: actionColor),
           const SizedBox(width: 4),
-          Text(isUndo ? 'Undo' : 'Organize',
-              style: TextStyle(color: actionColor)),
+          Text(label, style: TextStyle(color: actionColor)),
         ],
       )),
       DataCell(Text(failed ? 'Failed' : 'Completed',

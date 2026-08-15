@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:file_organizer_pro/models/custom_rule.dart';
 import 'package:file_organizer_pro/models/scanned_file.dart';
 import 'package:file_organizer_pro/models/scan_result.dart';
@@ -101,4 +103,92 @@ void main() {
     expect(plan.moves.single.targetPath,
         p.join('C:/demo', 'Backups', 'invoice_2026.pdf'));
   });
+
+  test('absolute rule targets are used as-is', () {
+    const rule = CustomRule(
+      name: 'Invoices',
+      field: RuleField.name,
+      condition: RuleCondition.contains,
+      value: 'invoice',
+      targetFolder: 'D:/Invoices',
+    );
+    final plan = organizer.buildPlan(
+      scan(['invoice_2026.pdf']),
+      rules: const [rule],
+    );
+    expect(plan.moves.single.targetPath,
+        p.join('D:/Invoices', 'invoice_2026.pdf'));
+  });
+
+  test('createFolder=false falls through to category when folder is missing',
+      () {
+    const rule = CustomRule(
+      name: 'Invoices',
+      field: RuleField.name,
+      condition: RuleCondition.contains,
+      value: 'invoice',
+      targetFolder: 'Documents/Invoices',
+      createFolder: false,
+    );
+    final plan = organizer.buildPlan(
+      scan(['invoice_2026.pdf']),
+      rules: const [rule],
+    );
+    // Target doesn't exist, so the rule is skipped and the default category
+    // folder is used instead.
+    expect(plan.moves.single.targetPath,
+        p.join('C:/demo', 'Documents', 'invoice_2026.pdf'));
+  });
+
+  test('createFolder=false applies when the target folder already exists',
+      () async {
+    final temp = await Directory.systemTemp.createTemp('fop_rule_test');
+    addTearDown(() async {
+      if (await temp.exists()) await temp.delete(recursive: true);
+    });
+    final target = Directory(p.join(temp.path, 'Documents', 'Invoices'));
+    await target.create(recursive: true);
+
+    const rule = CustomRule(
+      name: 'Invoices',
+      field: RuleField.name,
+      condition: RuleCondition.contains,
+      value: 'invoice',
+      targetFolder: 'Documents/Invoices',
+      createFolder: false,
+    );
+    final plan = organizer.buildPlan(
+      ScanResult(
+        folderPath: temp.path,
+        scannedAt: DateTime(2026, 8, 15),
+        duration: Duration.zero,
+        files: [
+          ScannedFile(
+            path: p.join(temp.path, 'invoice_2026.pdf'),
+            name: 'invoice_2026.pdf',
+            extension: 'pdf',
+            size: 10,
+            modified: DateTime(2026, 8, 15),
+          ),
+        ],
+        errorCount: 0,
+      ),
+      rules: const [rule],
+    );
+    // Implementation joins the scan root with the rule's relative target,
+    // so build the expectation the same way.
+    expect(plan.moves.single.targetPath,
+        p.join(temp.path, 'Documents/Invoices', 'invoice_2026.pdf'));
+  });
+
+  test('protected system targets are detected', () {
+    expect(
+        OrganizerService.isProtectedTarget(r'C:\Windows\System32'), isTrue);
+    expect(OrganizerService.isProtectedTarget(r'D:\Invoices'), isFalse);
+    expect(
+        OrganizerService.isProtectedTarget(
+            r'C:\Program Files (x86)\App'),
+        isTrue);
+  });
 }
+

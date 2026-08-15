@@ -2,6 +2,28 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.1.0] - 2026-08-15
+
+### Added
+- **Archive extraction** (Organize → Extract archives): safely unpacks zip,
+  tar, gz and tgz files into an `Extracted/` folder with preview, progress,
+  and undo (removes the extracted files and empty folders)
+- Extraction safety: path-traversal entries (`..`, absolute paths, symlinks)
+  are refused, existing files are never overwritten (a ` (1)` suffix is used)
+- **Per-rule folder options**: rules can target an absolute folder outside the
+  scanned root, and each rule has a "create folder if missing" toggle — when
+  off, matching files only move if the folder already exists, otherwise they
+  fall through to the default category
+- Protected-system-folder rules (e.g. a target inside `C:\Windows`) are
+  skipped automatically while system-folder protection is enabled
+- History now records extraction operations and their reversal
+
+### Changed
+- Rules editor: folder picker for absolute targets and the create-folder
+  toggle; Organize screen now has Organize / Extract archive modes
+- Database schema v3 (rules `create_folder`, operations `details`)
+- Version bumped to 1.1.0
+
 ## [1.0.0] - 2026-08-15
 
 ### Added

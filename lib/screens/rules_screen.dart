@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../core/app_controller.dart';
@@ -149,6 +150,9 @@ class _RuleCard extends StatelessWidget {
             ),
             if (!rule.enabled)
               Text('Disabled', style: TextStyle(color: scheme.outline)),
+            if (!rule.createFolder)
+              Text('Only if the folder already exists',
+                  style: TextStyle(color: scheme.outline)),
           ],
         ),
         trailing: Row(
@@ -206,6 +210,7 @@ class _RuleEditorDialogState extends State<_RuleEditorDialog> {
   late final TextEditingController _target;
   late RuleField _field;
   late RuleCondition _condition;
+  late bool _createFolder;
 
   @override
   void initState() {
@@ -216,6 +221,7 @@ class _RuleEditorDialogState extends State<_RuleEditorDialog> {
     _target = TextEditingController(text: rule?.targetFolder ?? '');
     _field = rule?.field ?? RuleField.name;
     _condition = rule?.condition ?? RuleCondition.contains;
+    _createFolder = rule?.createFolder ?? true;
   }
 
   @override
@@ -244,6 +250,7 @@ class _RuleEditorDialogState extends State<_RuleEditorDialog> {
       value: value,
       targetFolder: target,
       enabled: base?.enabled ?? true,
+      createFolder: _createFolder,
     ));
     if (mounted) Navigator.pop(context);
   }
@@ -319,13 +326,53 @@ class _RuleEditorDialogState extends State<_RuleEditorDialog> {
                 ),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _target,
-                decoration: const InputDecoration(
-                  labelText: 'Move to folder (relative)',
-                  hintText: 'e.g. Documents/Invoices',
-                  border: OutlineInputBorder(),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _target,
+                      decoration: const InputDecoration(
+                        labelText: 'Move to folder',
+                        hintText: 'Documents/Invoices or D:/Invoices',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final path =
+                          await FilePicker.platform.getDirectoryPath();
+                      if (path != null && path.isNotEmpty && mounted) {
+                        setState(() => _target.text = path);
+                      }
+                    },
+                    child: const Text('Browse…'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Relative paths are created inside the scanned folder; '
+                  'absolute paths are used as-is.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color:
+                          Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
+              ),
+              const SizedBox(height: 12),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Create folder if missing'),
+                subtitle: const Text(
+                    'When off, matching files are only moved if the folder '
+                    'already exists — otherwise they use the default '
+                    'category.'),
+                value: _createFolder,
+                onChanged: (v) => setState(() => _createFolder = v),
               ),
             ],
           ),
