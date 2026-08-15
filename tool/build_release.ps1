@@ -48,14 +48,15 @@ New-Item -ItemType Directory -Path $PortableApp -Force | Out-Null
 Write-Host '==> staging portable build' -ForegroundColor Cyan
 Copy-Item (Join-Path $ReleaseDir '*') $PortableApp -Recurse -Force
 
-# Keep the folder tidy for the zip.
-$ZipSource = Join-Path $Dist ('FileOrganizerPro-' + $Version)
-Rename-Item $PortableApp $ZipSource
-
 Write-Host '==> creating portable zip' -ForegroundColor Cyan
-$ZipPath = Join-Path $Dist "FileOrganizerPro-Portable.zip"
-Compress-Archive -Path $ZipSource -DestinationPath $ZipPath -Force
-Remove-Item $ZipSource -Recurse -Force
+# Rename the staged folder in place (Rename-Item takes a name, not a path),
+# so the zip contains a tidy FileOrganizerPro-<version>/ top-level folder.
+$ZipFolderName = 'FileOrganizerPro-' + $Version
+Rename-Item -Path $PortableApp -NewName $ZipFolderName
+$ZipFolder = Join-Path $PortableRoot $ZipFolderName
+$ZipPath = Join-Path $Dist 'FileOrganizerPro-Portable.zip'
+Compress-Archive -Path $ZipFolder -DestinationPath $ZipPath -Force
+Remove-Item $ZipFolder -Recurse -Force
 
 # --- Optional installer (Inno Setup) ---
 $Iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
