@@ -14,6 +14,7 @@ import '../services/archive_service.dart';
 import '../services/demo_service.dart';
 import '../services/duplicate_service.dart';
 import '../services/organizer_service.dart';
+import '../services/rename_service.dart';
 import '../services/scanner_service.dart';
 import '../services/settings_service.dart';
 import 'database_service.dart';
@@ -23,6 +24,8 @@ enum ScanPhase { idle, scanning, done, error }
 enum OrganizePhase { idle, applying, done }
 
 enum FindPhase { idle, running, done }
+
+enum RenamePhase { idle, applying, done }
 
 /// Central application state. Exposed to the widget tree via [AppScope].
 class AppController extends ChangeNotifier {
@@ -34,12 +37,14 @@ class AppController extends ChangeNotifier {
     DuplicateService? duplicateFinder,
     DemoService? demo,
     ArchiveService? archiveService,
+    RenameService? renameService,
   })  : database = database ?? DatabaseService.instance,
         scanner = scanner ?? const ScannerService(),
         organizer = organizer ?? const OrganizerService(),
         duplicateFinder = duplicateFinder ?? const DuplicateService(),
         demo = demo ?? const DemoService(),
-        archiveService = archiveService ?? const ArchiveService();
+        archiveService = archiveService ?? const ArchiveService(),
+        renameService = renameService ?? const RenameService();
 
   final SettingsService settings;
   final DatabaseService database;
@@ -48,6 +53,7 @@ class AppController extends ChangeNotifier {
   final DuplicateService duplicateFinder;
   final DemoService demo;
   final ArchiveService archiveService;
+  final RenameService renameService;
 
   // --- Scan state ---
   ScanPhase scanPhase = ScanPhase.idle;
@@ -89,6 +95,16 @@ class AppController extends ChangeNotifier {
   String extractCurrent = '';
   bool _extracting = false;
 
+  // --- Batch rename state ---
+  RenamePhase renamePhase = RenamePhase.idle;
+  RenamePlan? renamePlan;
+  RenameResult? renameResult;
+  int renameProgress = 0;
+  int renameTotal = 0;
+  String renameCurrent = '';
+  String? renameMessage;
+  bool _renaming = false;
+
   // --- Rules state ---
   List<CustomRule> rules = [];
 
@@ -122,6 +138,10 @@ class AppController extends ChangeNotifier {
     extractPlan = [];
     extractPhase = FindPhase.idle;
     extractResult = null;
+    renamePlan = null;
+    renamePhase = RenamePhase.idle;
+    renameResult = null;
+    renameMessage = null;
     notifyListeners();
 
     try {
@@ -241,6 +261,24 @@ class AppController extends ChangeNotifier {
     );
     if (latest.action == 'extract') {
       return _undoExtraction(batch);
+    }
+
+    final renames = batch.where((op) => op.action == 'rename').toList();
+    if (renames.isNotEmpty) {
+      final result = await organizer.undo(renames);
+      final undoOps = organizer.buildUndoOperations(
+        batch: renames,
+        undonePaths: result.restored,
+        action: 'rename_undo',
+      );
+      if (undoOps.isNotEmpty) {
+        await database.insertOperations(undoOps);
+      }
+      await refreshHistory();
+      return result.undone == renames.length
+          ? 'Undid ${result.undone} rename(s).'
+          : 'Undid ${result.undone} of ${renames.length} rename(s) '
+              '(${result.failed} could not be restored).';
     }
 
     final organizes =
@@ -451,6 +489,69 @@ class AppController extends ChangeNotifier {
       extractPhase = FindPhase.idle;
     } finally {
       _extracting = false;
+      notifyListeners();
+    }
+  }
+
+  // --- Batch rename ------------------------------------------------------
+
+  /// Builds (but does not apply) the rename plan for [files] using [options].
+  String? prepareRename(List<ScannedFile> files, RenameOptions options) {
+    final scan = currentScan;
+    if (scan == null) return 'Run a scan first.';
+    if (settings.protectSystemFolders &&
+        ScannerService.isProtected(scan.folderPath)) {
+      return 'This folder is protected. Enable "System-folder protection" '
+          'in Settings to allow renaming files.';
+    }
+    if (files.isEmpty) return 'Nothing to rename in the current scan.';
+    renamePlan = renameService.buildPlan(files, options);
+    renamePhase = RenamePhase.idle;
+    renameResult = null;
+    renameMessage = null;
+    notifyListeners();
+    return null;
+  }
+
+  Future<void> applyRename() async {
+    final plan = renamePlan;
+    if (plan == null || _renaming) return;
+    _renaming = true;
+    renamePhase = RenamePhase.applying;
+    renameProgress = 0;
+    renameTotal = plan.renames.length;
+    renameMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await renameService.apply(
+        plan,
+        onProgress: (done, total, current) {
+          renameProgress = done;
+          renameTotal = total;
+          renameCurrent = current;
+          notifyListeners();
+        },
+      );
+      renameResult = result;
+      final batchId = await database.nextBatchId();
+      final ops = renameService.buildOperations(
+        batchId: batchId,
+        plan: plan,
+        appliedPaths: result.appliedPaths,
+      );
+      await database.insertOperations(ops);
+      renamePhase = RenamePhase.done;
+      renameMessage =
+          'Renamed ${result.renamed} file(s)'
+          '${result.skipped > 0 ? ', skipped ${result.skipped}' : ''}'
+          '${result.failed > 0 ? ', failed ${result.failed}' : ''}.';
+      await refreshHistory();
+    } catch (e) {
+      renamePhase = RenamePhase.idle;
+      renameMessage = 'Rename failed: $e';
+    } finally {
+      _renaming = false;
       notifyListeners();
     }
   }

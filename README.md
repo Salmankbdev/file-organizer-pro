@@ -5,7 +5,7 @@ organization utility for Windows 10/11. Fully offline, no account required.
 
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-blue)
 ![Flutter](https://img.shields.io/badge/Flutter-3.41-blueviolet)
-![Version](https://img.shields.io/badge/version-1.0.0-green)
+![Version](https://img.shields.io/badge/version-1.2.0-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## ✨ Features
@@ -38,6 +38,9 @@ organization utility for Windows 10/11. Fully offline, no account required.
 - **🗜 Archive extraction** — safely unpack zip, tar, gz and tgz files into an
   `Extracted/` folder with preview, progress and undo; path-traversal entries
   are refused and existing files are never overwritten
+- **✏️ Batch rename** — rename many files at once with a pattern: find &
+  replace, prefix/suffix, numbered sequences, or case conversion — every
+  change previewed first, conflict-safe, and undoable
 - **🎨 Appearance** — light/dark mode and accent color
 - **🛡️ Safety first** — system-folder protection, conflict handling with
   `name (1).ext`, delete confirmations, overwrite protection, failure isolation
@@ -110,7 +113,9 @@ artifacts without creating a Release.
    full move plan (custom rules apply automatically)
 5. **Apply** — press *Apply changes*; conflicts get a ` (1)` suffix instead of
    overwriting
-6. **Undo** — from the *History* tab, press *Undo Last Operation* to reverse
+6. **Rename** — open the *Rename* tab, pick a pattern (find & replace,
+   prefix/suffix, numbering, case), preview the new names, and apply
+7. **Undo** — from the *History* tab, press *Undo Last Operation* to reverse
    the most recent batch — any time, even after restart
 
 ## 🛡️ Safety
@@ -142,6 +147,7 @@ lib/
 ├── services/
 │   ├── scanner_service.dart    # recursive folder scan with progress
 │   ├── organizer_service.dart  # move plan, rules, apply, conflicts, undo
+│   ├── rename_service.dart     # batch rename patterns, conflicts, undo
 │   ├── duplicate_service.dart  # SHA-256 duplicate detection
 │   ├── demo_service.dart       # disposable sample folder in temp
 │   └── settings_service.dart   # persisted preferences
@@ -164,7 +170,10 @@ tool/
 | MVP 3 — Duplicate Finder (SHA-256) → Large File Finder | ✅ done |
 | MVP 4 — Storage Analytics → History → Settings | ✅ done |
 | MVP 5 — Testing → Docs → Release | ✅ v1.0.0 released |
-| v1.1.0 — Archive extraction + per-rule folder options | ✅ released |Planned next: 7z/rar extraction, more scan filters (owner, hidden files),
+| v1.1.0 — Archive extraction + per-rule folder options | ✅ released |
+| v1.2.0 — Batch rename (patterns, preview, undo) | ✅ released |
+
+Planned next: 7z/rar extraction, more scan filters (owner, hidden files),
 archive-in-archive handling, and a portable settings export/import.
 
 ## 🧪 Testing

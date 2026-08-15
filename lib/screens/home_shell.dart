@@ -5,6 +5,7 @@ import 'duplicates_screen.dart';
 import 'history_screen.dart';
 import 'large_files_screen.dart';
 import 'organize_screen.dart';
+import 'rename_screen.dart';
 import 'rules_screen.dart';
 import 'scan_screen.dart';
 import 'settings_screen.dart';
@@ -30,6 +31,7 @@ class HomeShellState extends State<HomeShell> {
     DashboardScreen(),
     ScanScreen(),
     OrganizeScreen(),
+    RenameScreen(),
     DuplicatesScreen(),
     LargeFilesScreen(),
     RulesScreen(),
@@ -89,6 +91,11 @@ class HomeShellState extends State<HomeShell> {
                 icon: Icon(Icons.drive_file_move_outlined),
                 selectedIcon: Icon(Icons.drive_file_move),
                 label: Text('Organize'),
+              ),
+              NavigationRailDestination(
+                icon: Icon(Icons.drive_file_rename_outline),
+                selectedIcon: Icon(Icons.drive_file_rename_outline),
+                label: Text('Rename'),
               ),
               NavigationRailDestination(
                 icon: Icon(Icons.content_copy_outlined),

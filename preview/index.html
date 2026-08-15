@@ -246,6 +246,7 @@
     <button class="rail-btn active" data-tab="dashboard"><span class="ico">📊</span>Dashboard</button>
     <button class="rail-btn" data-tab="scan"><span class="ico">🔎</span>Scan</button>
     <button class="rail-btn" data-tab="organize"><span class="ico">📂</span>Organize</button>
+    <button class="rail-btn" data-tab="rename"><span class="ico">✏️</span>Rename</button>
     <button class="rail-btn" data-tab="duplicates"><span class="ico">⧉</span>Duplicates</button>
     <button class="rail-btn" data-tab="large"><span class="ico">📈</span>Large Files</button>
     <button class="rail-btn" data-tab="rules"><span class="ico">📏</span>Rules</button>
@@ -262,6 +263,7 @@
       <div class="actions">
         <button class="btn btn-filled" data-go="scan">📁 Scan Folder</button>
         <button class="btn btn-tonal" data-go="organize">📂 Organize</button>
+        <button class="btn btn-tonal" data-go="rename">✏️ Batch Rename</button>
         <button class="btn btn-outline" data-go="duplicates">📑 Find Duplicates</button>
         <button class="btn btn-outline" data-go="large">📈 Find Large Files</button>
       </div>
@@ -370,6 +372,50 @@
         <button class="btn btn-outline" id="btn-rebuild" style="display:none">⟳ Rebuild plan</button>
       </div>
       <div id="org-message" style="margin-top:14px; color:var(--on-variant); font-size:14px"></div>
+    </section>
+
+    <!-- ============ RENAME ============ -->
+    <section id="tab-rename" class="tab">
+      <h1>Batch Rename</h1>
+      <p class="sub">Rename many files at once with a pattern. Every change is previewed first, never overwrites an existing file, and can be undone.</p>
+
+      <div class="card card-pad">
+        <div class="seg" id="rename-mode-seg" style="flex-wrap:wrap">
+          <button data-mode="findReplace" class="active">Find &amp; replace</button>
+          <button data-mode="prefix">Add prefix</button>
+          <button data-mode="suffix">Add suffix</button>
+          <button data-mode="numbering">Number files</button>
+          <button data-mode="case">Change case</button>
+        </div>
+        <div id="rename-fields" style="margin-top:14px"></div>
+        <div style="margin-top:14px">
+          <button class="btn btn-tonal" id="btn-rename-preview">👁 Preview names</button>
+        </div>
+      </div>
+
+      <div id="rename-empty" class="card">
+        <div class="empty">
+          <div class="big">✏️</div>
+          <h3>Ready to rename</h3>
+          <p>Choose a pattern above and preview how the scanned files would be renamed. Nothing changes until you apply.</p>
+        </div>
+      </div>
+
+      <div id="rename-plan" style="display:none"></div>
+
+      <div id="rename-progress-wrap" style="display:none; margin:14px 0">
+        <div class="card card-pad">
+          <b id="rename-progress-title">Renaming… 0 / 0</b>
+          <div class="progress" style="margin-top:12px"><div id="rename-progress"></div></div>
+          <div class="progress-label" id="rename-progress-current"></div>
+        </div>
+      </div>
+
+      <div id="rename-actions" style="display:none; margin-top:6px" class="row">
+        <button class="btn btn-filled" id="btn-rename-apply">✔ Apply renames</button>
+        <button class="btn btn-outline" id="btn-rename-undo" style="display:none">↩ Undo this operation</button>
+      </div>
+      <div id="rename-message" style="margin-top:14px; color:var(--on-variant); font-size:14px"></div>
     </section>
 
     <!-- ============ DUPLICATES ============ -->
@@ -573,7 +619,7 @@
           <label class="toggle"><input type="checkbox" id="set-noverwrite" checked><span class="track"></span></label>
         </div>
       </div>
-      <p style="font-size:12px; color:var(--on-variant); margin-top:22px">File Organizer Pro v1.0.0 — scans, organizes and undoes everything locally. No account, no internet required.</p>
+      <p style="font-size:12px; color:var(--on-variant); margin-top:22px">File Organizer Pro v1.2.0 — scans, organizes, renames and undoes everything locally. No account, no internet required.</p>
     </section>
   </main>
 </div>
@@ -905,7 +951,196 @@ document.getElementById("btn-undo").onclick = () => {
   toast("Undid " + undone.length + " move(s)");
 };
 
+/* ---------- rename ---------- */
+let renameMode = "findReplace";
+let renamePlan = null;
+function splitName(n){
+  const i = n.lastIndexOf(".");
+  return i <= 0 ? [n, ""] : [n.slice(0, i), n.slice(i)];
+}
+function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+function titleCase(s){
+  return s.replace(/(^|[^a-zA-Z0-9])([a-zA-Z0-9])/g, (m, sep, ch) => sep + ch.toUpperCase());
+}
+function renameOpts(){
+  const v = id => document.getElementById(id)?.value ?? "";
+  const c = id => document.getElementById(id)?.checked ?? false;
+  return {
+    find: v("rn-find"), replace: v("rn-replace"),
+    caseSensitive: c("rn-case"), replaceAll: c("rn-replaceall"),
+    prefix: v("rn-prefix"), suffix: v("rn-suffix"),
+    startAt: parseInt(v("rn-start") || "1", 10) || 1,
+    padding: Math.max(1, parseInt(v("rn-pad") || "3", 10) || 3),
+    caseMode: v("rn-case-mode") || "lower",
+  };
+}
+function renderRenameFields(){
+  document.querySelectorAll("#rename-mode-seg button").forEach(b =>
+    b.classList.toggle("active", b.dataset.mode === renameMode));
+  const wrap = document.getElementById("rename-fields");
+  let html = "";
+  const f = "class=\"field\" style=\"padding:10px 12px\"";
+  if (renameMode === "findReplace") {
+    html = `<div class="row">
+        <input id="rn-find" ${f} placeholder="Find">
+        <input id="rn-replace" ${f} placeholder="Replace with">
+      </div>
+      <div class="row" style="margin-top:10px; gap:22px">
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px"><input type="checkbox" id="rn-case"> Case sensitive</label>
+        <label style="font-size:13px; display:flex; align-items:center; gap:6px"><input type="checkbox" id="rn-replaceall" checked> Replace all occurrences</label>
+      </div>`;
+  } else if (renameMode === "prefix") {
+    html = `<input id="rn-prefix" ${f} placeholder="Prefix, e.g. Draft_">`;
+  } else if (renameMode === "suffix") {
+    html = `<input id="rn-suffix" ${f} placeholder="Suffix before extension, e.g. _final">`;
+  } else if (renameMode === "numbering") {
+    html = `<div class="row">
+        <input id="rn-prefix" ${f} placeholder="Prefix, e.g. IMG_">
+        <input id="rn-suffix" ${f} placeholder="Suffix">
+        <input id="rn-start" ${f} type="number" value="1" style="padding:10px 12px; max-width:110px" title="Start at">
+        <input id="rn-pad" ${f} type="number" value="3" style="padding:10px 12px; max-width:110px" title="Padding">
+      </div>`;
+  } else if (renameMode === "case") {
+    html = `<select id="rn-case-mode" class="field" style="padding:10px 12px; max-width:300px">
+        <option value="lower">Lowercase · hello.txt</option>
+        <option value="upper">UPPERCASE · HELLO.TXT</option>
+        <option value="title">Title Case · Hello World</option>
+      </select>`;
+  }
+  wrap.innerHTML = html;
+}
+document.querySelectorAll("#rename-mode-seg button").forEach(b => b.onclick = () => {
+  renameMode = b.dataset.mode; renderRenameFields();
+});
+function deriveName(name, o){
+  const [base, ext] = splitName(name);
+  if (renameMode === "findReplace") {
+    if (!o.find) return name;
+    if (o.caseSensitive) {
+      if (o.replaceAll) return name.split(o.find).join(o.replace);
+      const i = name.indexOf(o.find);
+      return i < 0 ? name : name.slice(0, i) + o.replace + name.slice(i + o.find.length);
+    }
+    if (!o.replaceAll) {
+      const i = name.toLowerCase().indexOf(o.find.toLowerCase());
+      return i < 0 ? name : name.slice(0, i) + o.replace + name.slice(i + o.find.length);
+    }
+    return name.replace(new RegExp(escapeReg(o.find), "gi"), o.replace);
+  }
+  if (renameMode === "prefix") return o.prefix + name;
+  if (renameMode === "suffix") return base + o.suffix + ext;
+  if (renameMode === "case") {
+    if (o.caseMode === "lower") return base.toLowerCase() + ext.toLowerCase();
+    if (o.caseMode === "upper") return base.toUpperCase() + ext.toUpperCase();
+    return titleCase(base) + ext.toLowerCase();
+  }
+  return name;
+}
+function buildRenamePlan(){
+  if (!state.scanned) { toast("Run a scan first — go to the Scan tab."); return null; }
+  const o = renameOpts();
+  if (renameMode === "findReplace" && !o.find) { toast("Enter text to find first."); return null; }
+  if (renameMode === "prefix" && !o.prefix) { toast("Enter a prefix first."); return null; }
+  if (renameMode === "suffix" && !o.suffix) { toast("Enter a suffix first."); return null; }
+  const plan = [];
+  const used = new Set();
+  const existing = new Set(FILES.map(f => f[0].toLowerCase()));
+  let counter = o.startAt;
+  FILES.forEach(f => {
+    let nn;
+    if (renameMode === "numbering") {
+      const [base, ext] = splitName(f[0]);
+      nn = (o.prefix + String(counter).padStart(o.padding, "0") + o.suffix) + ext;
+      counter++;
+    } else {
+      nn = deriveName(f[0], o);
+    }
+    if (nn === f[0]) return;
+    const lower = nn.toLowerCase();
+    const conflict = used.has(lower) || existing.has(lower);
+    used.add(lower);
+    plan.push({ name: f[0], newName: nn, conflict });
+  });
+  return plan;
+}
+document.getElementById("btn-rename-preview").onclick = () => {
+  const plan = buildRenamePlan();
+  if (!plan) return;
+  renamePlan = plan;
+  document.getElementById("rename-empty").style.display = "none";
+  const wrap = document.getElementById("rename-plan");
+  wrap.style.display = "block";
+  const conflicts = plan.filter(p => p.conflict).length;
+  wrap.innerHTML = `
+    <div class="card">
+      <div class="card-pad" style="padding-bottom:8px">${plan.length} file(s) will be renamed${conflicts ? ` · <span style="color:var(--error)">${conflicts} conflict(s) get a (1) suffix instead of overwriting</span>` : ""}</div>
+      ${plan.map(p => `
+        <div class="plan-row" style="padding-left:16px">
+          <span>${p.name}</span>
+          <span class="dest">${p.conflict ? "⚠ " : ""}<span class="arr">→</span> ${p.newName}</span>
+        </div>`).join("")}
+    </div>`;
+  document.getElementById("rename-actions").style.display = "";
+  document.getElementById("btn-rename-apply").style.display = "";
+  document.getElementById("btn-rename-undo").style.display = "none";
+  document.getElementById("rename-message").textContent = "";
+  toast("Previewed " + plan.length + " rename(s) — nothing applied yet");
+};
+document.getElementById("btn-rename-apply").onclick = () => {
+  const plan = renamePlan || [];
+  if (!plan.length) return;
+  const wrap = document.getElementById("rename-progress-wrap");
+  const bar = document.getElementById("rename-progress");
+  const title = document.getElementById("rename-progress-title");
+  const current = document.getElementById("rename-progress-current");
+  wrap.style.display = "block";
+  document.getElementById("btn-rename-apply").disabled = true;
+  const start = performance.now();
+  const step = () => {
+    const p = Math.min(1, (performance.now()-start)/1300);
+    const n = Math.round(p * plan.length);
+    bar.style.width = (p*100)+"%";
+    title.textContent = `Renaming… ${n} / ${plan.length}`;
+    current.textContent = plan[Math.min(n, plan.length-1)].name;
+    if (p < 1) { setTimeout(step, 60); return; }
+    wrap.style.display = "none";
+    document.getElementById("btn-rename-apply").disabled = false;
+    const now = new Date();
+    state.history.unshift(...plan.map(p => ({
+      when: now, file: p.name,
+      from: "Downloads/" + p.name, to: "Downloads/" + p.newName,
+      action: "rename", status: "completed",
+    })));
+    renderHistory(); renderDashboard();
+    document.getElementById("btn-rename-apply").style.display = "none";
+    document.getElementById("btn-rename-undo").style.display = "";
+    document.getElementById("rename-message").innerHTML =
+      `<span class="badge-ok">✔ Renamed ${plan.length} file(s) — conflicts got a (1) suffix.</span>`;
+    toast("Renamed " + plan.length + " file(s) — undo available");
+  };
+  setTimeout(step, 60);
+};
+document.getElementById("btn-rename-undo").onclick = () => {
+  const undone = state.history.filter(h => h.action === "rename");
+  undone.forEach(h => h.action = "rename_undo");
+  renderHistory(); renderDashboard();
+  document.getElementById("btn-rename-undo").style.display = "none";
+  document.getElementById("btn-rename-apply").style.display = "";
+  document.getElementById("rename-message").innerHTML =
+    `<span class="badge-ok">↩ Undid ${undone.length} rename(s) — names are back to the originals.</span>`;
+  toast("Undid " + undone.length + " rename(s)");
+};
+renderRenameFields();
+
 /* ---------- history ---------- */
+function actionLabel(a){
+  if (a === "undo") return "↩ Undo";
+  if (a === "rename") return "✏️ Rename";
+  if (a === "rename_undo") return "↩ Rename undo";
+  if (a === "extract") return "🗜 Extract";
+  if (a === "extract_undo") return "↩ Extract undo";
+  return "📂 Organize";
+}
 function renderHistory(){
   const count = state.history.filter(h => h.action === "organize").length;
   document.getElementById("hist-count").textContent = count;
@@ -919,7 +1154,7 @@ function renderHistory(){
       <td>${h.when.toLocaleDateString("en-US",{month:"short",day:"numeric"})} · ${h.when.toLocaleTimeString("en-US",{hour:"2-digit",minute:"2-digit"})}</td>
       <td>${h.file}</td>
       <td>…\\${h.from.split("\\").pop()} → …\\${h.to.split("\\").pop()}</td>
-      <td>${h.action === "undo" ? "↩ Undo" : "📂 Organize"}</td>
+      <td>${actionLabel(h.action)}</td>
       <td class="${h.status === "completed" ? "badge-ok" : "badge-err"}">${h.status === "completed" ? "Completed" : "Failed"}</td>
     </tr>`).join("");
 }

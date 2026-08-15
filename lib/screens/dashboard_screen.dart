@@ -61,15 +61,21 @@ class DashboardScreen extends StatelessWidget {
                     icon: const Icon(Icons.drive_file_move),
                     label: const Text('Organize'),
                   ),
+                  FilledButton.tonalIcon(
+                    onPressed: () =>
+                        _goTo(context, 3), // Rename screen
+                    icon: const Icon(Icons.drive_file_rename_outline),
+                    label: const Text('Batch Rename'),
+                  ),
                   OutlinedButton.icon(
                     onPressed: () =>
-                        _goTo(context, 3), // Duplicates screen
+                        _goTo(context, 4), // Duplicates screen
                     icon: const Icon(Icons.content_copy),
                     label: const Text('Find Duplicates'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () =>
-                        _goTo(context, 4), // Large Files screen
+                        _goTo(context, 5), // Large Files screen
                     icon: const Icon(Icons.data_usage),
                     label: const Text('Find Large Files'),
                   ),

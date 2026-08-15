@@ -109,18 +109,21 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   DataRow _operationRow(BuildContext context, MoveOperation op) {
     final scheme = Theme.of(context).colorScheme;
-    final isUndo = op.action == 'undo' || op.action == 'extract_undo';
-    final isExtract = op.action == 'extract';
+    final isUndo =
+        op.action == 'undo' ||
+        op.action == 'extract_undo' ||
+        op.action == 'rename_undo';
     final failed = op.status == 'failed';
     final actionColor =
         failed ? scheme.error : (isUndo ? scheme.tertiary : scheme.primary);
-    final (icon, label) = isExtract
-        ? (Icons.unarchive_outlined, 'Extract')
-        : (isUndo && op.action == 'extract_undo'
-            ? (Icons.undo, 'Extract undo')
-            : (isUndo
-                ? (Icons.undo, 'Undo')
-                : (Icons.drive_file_move, 'Organize')));
+    final (icon, label) = switch (op.action) {
+      'extract' => (Icons.unarchive_outlined, 'Extract'),
+      'extract_undo' => (Icons.undo, 'Extract undo'),
+      'rename' => (Icons.drive_file_rename_outline, 'Rename'),
+      'rename_undo' => (Icons.undo, 'Rename undo'),
+      'undo' => (Icons.undo, 'Undo'),
+      _ => (Icons.drive_file_move, 'Organize'),
+    };
     return DataRow(cells: [
       DataCell(Text(FileUtils.humanDate(op.createdAt))),
       DataCell(Text(op.fileName, overflow: TextOverflow.ellipsis, maxLines: 1)),

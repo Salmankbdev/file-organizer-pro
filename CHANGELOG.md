@@ -2,6 +2,25 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.2.0] - 2026-08-16
+
+### Added
+- **Batch rename** (new Rename section): rename many files at once with a
+  pattern — find & replace (case-sensitive, all or first occurrence), add
+  prefix or suffix, number files with a start value and padding, and case
+  conversion (lowercase / uppercase / title case)
+- Every rename is previewed first (with conflict warnings), never overwrites
+  an existing file (a ` (1)` suffix is used instead), and can be undone from
+  the History screen; rename batches are recorded as first-class history
+  entries
+- Dashboard quick action for Batch Rename
+
+### Changed
+- Navigation rail expanded to ten sections (Dashboard, Scan, Organize,
+  Rename, Duplicates, Large Files, Rules, Storage, History, Settings)
+- History screen distinguishes Rename / Rename undo from organize moves
+- Version bumped to 1.2.0
+
 ## [1.1.0] - 2026-08-15
 
 ### Added

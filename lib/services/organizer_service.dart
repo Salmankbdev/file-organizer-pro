@@ -229,6 +229,7 @@ class OrganizerService {
   List<MoveOperation> buildUndoOperations({
     required List<MoveOperation> batch,
     required Set<String> undonePaths,
+    String action = 'undo',
   }) {
     final now = DateTime.now();
     return [
@@ -239,7 +240,7 @@ class OrganizerService {
             fileName: op.fileName,
             fromPath: op.fromPath,
             toPath: op.toPath,
-            action: 'undo',
+            action: action,
             status: 'completed',
             createdAt: now,
           ),
