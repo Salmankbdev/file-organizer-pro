@@ -37,10 +37,21 @@ jobs:
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
+      - name: Resolve version from tag
+        shell: pwsh
+        # v1.0.0 -> 1.0.0 (used for the installer metadata); manual runs default
+        # to 1.0.0. GitHub expressions cannot slice strings, so this is done
+        # in a shell step.
+        run: |
+          if ("${{ github.ref }}" -like 'refs/tags/*') {
+            $v = "${{ github.ref_name }}" -replace '^v', ''
+          } else {
+            $v = '1.0.0'
+          }
+          Write-Host "Resolved APP_VERSION=$v"
+          "APP_VERSION=$v" >> $env:GITHUB_ENV
+
       - name: Build release artifacts
-        env:
-          # v1.0.0 -> 1.0.0 (used for the installer metadata)
-          APP_VERSION: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name.substring(1) || '1.0.0' }}
         run: powershell -NoProfile -ExecutionPolicy Bypass -File tool/build_release.ps1
 
       - name: Upload artifacts
