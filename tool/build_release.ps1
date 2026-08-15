@@ -59,22 +59,27 @@ Compress-Archive -Path $ZipFolder -DestinationPath $ZipPath -Force
 Remove-Item $ZipFolder -Recurse -Force
 
 # --- Optional installer (Inno Setup) ---
-$Iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-if (-not $Iscc) {
+$IsccPath = $null
+# Get-Command returns an ApplicationInfo whose executable is .Source;
+# Test-Path candidates are FileInfo objects with .FullName. Normalize to a
+# plain path so the invocation below works in both cases.
+$cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+if ($cmd) { $IsccPath = $cmd.Source }
+if (-not $IsccPath) {
     # Inno Setup 6 commonly installs to the user or Program Files paths.
     foreach ($candidate in @(
         "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
     )) {
-        if (Test-Path $candidate) { $Iscc = Get-Item $candidate; break }
+        if (Test-Path $candidate) { $IsccPath = $candidate; break }
     }
 }
-if ($Iscc) {
+if ($IsccPath) {
     Write-Host '==> building installer with Inno Setup' -ForegroundColor Cyan
     # Keep the staged build for the installer to pack.
     Copy-Item (Join-Path $ReleaseDir '*') $PortableApp -Recurse -Force
-    & $Iscc.FullName (Join-Path $Root 'tool\installer.iss') /DAppVersion=$Version
+    & $IsccPath (Join-Path $Root 'tool\installer.iss') /DAppVersion=$Version
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
 } else {
     Write-Host 'Inno Setup not found — skipping installer. Install Inno Setup 6 and ensure ISCC.exe is on PATH to build FileOrganizerPro-Setup.exe.' -ForegroundColor Yellow
