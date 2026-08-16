@@ -174,6 +174,13 @@ class DatabaseService {
     await db.delete('operations');
   }
 
+  /// Removes stored scan summaries — regenerable cache used for the
+  /// dashboard's "last scan" stats. Operations, rules and preferences are
+  /// untouched.
+  Future<void> clearScanCache() async {
+    await db.delete('scans');
+  }
+
   // --- Rules -------------------------------------------------------------
 
   Future<List<CustomRule>> rules() async {

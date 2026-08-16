@@ -630,6 +630,23 @@ class AppController extends ChangeNotifier {
     await refreshHistory();
   }
 
+  /// Clears regenerable cache: stored scan summaries (dashboard "last scan"
+  /// stats) and the disposable demo sample folder. Rules, operation history
+  /// and preferences are kept — the next scan rebuilds the cache.
+  Future<void> clearCache() async {
+    await database.clearScanCache();
+    try {
+      final demoDir = Directory(DemoService.demoRoot);
+      if (await demoDir.exists()) {
+        await demoDir.delete(recursive: true);
+      }
+    } catch (_) {
+      // Best-effort cleanup — a locked temp file is not worth failing over.
+    }
+    latestScanRow = await database.latestScanRow();
+    notifyListeners();
+  }
+
   /// Wipes preferences and the database, returning the app to first-run state.
   Future<void> resetAll() async {
     await settings.resetAll();

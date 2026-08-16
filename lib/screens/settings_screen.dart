@@ -171,6 +171,18 @@ class SettingsScreen extends StatelessWidget {
                       ),
                     ),
                     ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined),
+                      title: const Text('Clear scan cache'),
+                      subtitle: const Text(
+                          'Removes stored scan summaries (dashboard stats) '
+                          'and the demo sample folder. Files, rules and '
+                          'history are kept — re-scan to rebuild.'),
+                      trailing: OutlinedButton(
+                        onPressed: () => _confirmClearCache(context, controller),
+                        child: const Text('Clear'),
+                      ),
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.restart_alt),
                       title: const Text('Reset all settings'),
                       subtitle: const Text(
@@ -235,7 +247,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('File Organizer Pro v1.3.0'),
+                      title: const Text('File Organizer Pro v1.4.0'),
                       subtitle: const Text(
                           'Scans, organizes and undoes everything locally. '
                           'No account, no internet required.'),
@@ -302,6 +314,37 @@ class SettingsScreen extends StatelessWidget {
       ),
     );
     if (ok == true) await controller.clearHistory();
+  }
+
+  Future<void> _confirmClearCache(
+      BuildContext context, AppController controller) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.cleaning_services_outlined),
+        title: const Text('Clear scan cache?'),
+        content: const Text(
+            'Stored scan summaries and the demo sample folder will be '
+            'removed. Your files are never touched, and rules, history '
+            'and settings are kept.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await controller.clearCache();
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Scan cache cleared.')));
+      }
+    }
   }
 
   Future<void> _confirmReset(

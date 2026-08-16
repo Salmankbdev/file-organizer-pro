@@ -2,6 +2,15 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.4.0] - 2026-08-16
+
+### Added
+- **Clear scan cache** in Settings → Storage: removes stored scan summaries
+  (dashboard "last scan" stats) and the demo sample folder behind a
+  confirmation dialog. Files, rules, history and preferences are never
+  touched — the next scan rebuilds the cache
+- Version bumped to 1.4.0
+
 ## [1.3.0] - 2026-08-16
 
 ### Performance
