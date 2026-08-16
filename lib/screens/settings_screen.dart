@@ -227,11 +227,52 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              Text(
-                'File Organizer Pro v1.0.0 — scans, organizes and undoes '
-                'everything locally. No account, no internet required.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant),
+
+              // --- About ---
+              const SectionHeader('About'),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.info_outline),
+                      title: const Text('File Organizer Pro v1.2.0'),
+                      subtitle: const Text(
+                          'Scans, organizes and undoes everything locally. '
+                          'No account, no internet required.'),
+                    ),
+                    const Divider(height: 1),
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(Icons.shield_outlined,
+                              color: Theme.of(context).colorScheme.primary),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Windows shows "Windows protected your PC" '
+                              'when you run the installer or the portable '
+                              'exe? That is normal — the release binaries '
+                              'are not code-signed, so Windows cannot '
+                              'verify the publisher. Click More info → Run '
+                              'anyway. The files are safe: fully open '
+                              'source, offline, and scanned clean by '
+                              'Windows Defender.',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurfaceVariant),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
