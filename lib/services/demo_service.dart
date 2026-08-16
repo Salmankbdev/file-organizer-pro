@@ -16,6 +16,24 @@ class DemoService {
   static String get demoRoot =>
       p.join(Directory.systemTemp.path, folderName);
 
+  /// Total bytes on disk of the demo sample folder, if it exists.
+  static Future<int> demoFolderBytes() async {
+    final root = Directory(demoRoot);
+    if (!await root.exists()) return 0;
+    var total = 0;
+    await for (final entity
+        in root.list(recursive: true, followLinks: false)) {
+      if (entity is File) {
+        try {
+          total += await entity.length();
+        } catch (_) {
+          // Unreadable file — skip.
+        }
+      }
+    }
+    return total;
+  }
+
   /// Creates (or recreates) the demo folder and returns its path.
   Future<String> createDemoFolder() async {
     final root = Directory(demoRoot);

@@ -277,6 +277,18 @@
       </div>
       <div class="section-title">Files by Category</div>
       <div class="chips" id="d-cats"><span class="chip" style="opacity:.6">No scan yet</span></div>
+      <div class="section-title">Storage</div>
+      <div class="card card-pad">
+        <div class="row" style="justify-content: space-between">
+          <span>🗎 Stored scans <span style="opacity:.6">— dashboard stats</span></span>
+          <b id="d-cache-scans">0</b>
+        </div>
+        <div class="row" style="justify-content: space-between; margin-top: 8px">
+          <span>🧹 Cache on disk <span style="opacity:.6">— database + demo folder</span></span>
+          <b id="d-cache-bytes">0 B</b>
+        </div>
+        <div style="opacity:.6; font-size:12px; margin-top:8px">Cleared from Settings → Storage → Clear scan cache.</div>
+      </div>
     </section>
 
     <!-- ============ SCAN ============ -->
@@ -748,6 +760,8 @@ function renderDashboard(){
   document.getElementById("d-organized").textContent = state.appliedCount;
   document.getElementById("d-dup").textContent = state.dupGroups ? state.dupGroups.reduce((s,g)=>s+g.length,0) : "—";
   document.getElementById("d-large").textContent = state.largeFiles ? state.largeFiles.length : "—";
+  document.getElementById("d-cache-scans").textContent = state.scanned ? 1 : 0;
+  document.getElementById("d-cache-bytes").textContent = state.scanned ? "2.4 MB" : "0 B";
   if (state.scanned) {
     document.getElementById("dash-sub").textContent =
       "Overview of Downloads (" + humanSize(FILES.reduce((s,f)=>s+f[2],0)) + ")";

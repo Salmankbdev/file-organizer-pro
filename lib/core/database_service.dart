@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -14,6 +15,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._();
 
   Database? _db;
+  String? _dbPath;
   bool _initialized = false;
 
   Future<void> init() async {
@@ -23,6 +25,7 @@ class DatabaseService {
 
     final dir = await getApplicationSupportDirectory();
     final dbPath = p.join(dir.path, 'file_organizer.db');
+    _dbPath = dbPath;
     _db = await databaseFactory.openDatabase(
       dbPath,
       options: OpenDatabaseOptions(
@@ -176,9 +179,36 @@ class DatabaseService {
 
   /// Removes stored scan summaries — regenerable cache used for the
   /// dashboard's "last scan" stats. Operations, rules and preferences are
-  /// untouched.
+  /// untouched. A [VACUUM] reclaims the freed space so the on-disk cache
+  /// size visibly drops.
   Future<void> clearScanCache() async {
     await db.delete('scans');
+    try {
+      await db.execute('VACUUM');
+    } catch (_) {
+      // VACUUM is a best-effort compaction; a failure is not fatal.
+    }
+  }
+
+  /// Count of stored scan summaries and the on-disk size (in bytes) of the
+  /// database files (`file_organizer.db` + WAL/SHM).
+  Future<({int scanCount, int dbBytes})> scanCacheStats() async {
+    final rows =
+        await db.rawQuery('SELECT COUNT(*) AS c FROM scans');
+    final scanCount = (rows.first['c'] as num?)?.toInt() ?? 0;
+    final dbPath = _dbPath;
+    var dbBytes = 0;
+    if (dbPath != null) {
+      for (final suffix in const ['', '-wal', '-shm']) {
+        final file = File(dbPath + suffix);
+        try {
+          if (await file.exists()) dbBytes += await file.length();
+        } catch (_) {
+          // Ignore files that can't be stat'ed.
+        }
+      }
+    }
+    return (scanCount: scanCount, dbBytes: dbBytes);
   }
 
   // --- Rules -------------------------------------------------------------

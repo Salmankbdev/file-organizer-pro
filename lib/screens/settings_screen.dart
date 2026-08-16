@@ -247,7 +247,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('File Organizer Pro v1.4.0'),
+                      title: const Text('File Organizer Pro v1.5.0'),
                       subtitle: const Text(
                           'Scans, organizes and undoes everything locally. '
                           'No account, no internet required.'),

@@ -2,6 +2,16 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.5.0] - 2026-08-16
+
+### Added
+- **Dashboard → Storage** section showing how much scan cache is stored:
+  stored scan summary count and the on-disk size of the database files plus
+  the demo sample folder (live-updated after scans and cache clears)
+- Clearing the scan cache now runs a SQLite `VACUUM` so the freed space is
+  actually reclaimed and the dashboard's cache size reflects it
+- Version bumped to 1.5.0
+
 ## [1.4.0] - 2026-08-16
 
 ### Added

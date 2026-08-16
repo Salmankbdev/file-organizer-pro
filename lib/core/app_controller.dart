@@ -120,11 +120,25 @@ class AppController extends ChangeNotifier {
   int organizedFileCount = 0;
   Map<String, Object?>? latestScanRow;
 
+  // --- Cache stats (dashboard Storage section) ---
+  int cacheScanCount = 0;
+  int cacheBytes = 0;
+
   Future<void> init() async {
     await settings.init();
     await database.init();
     await refreshHistory();
     rules = await database.rules();
+    await refreshCacheStats();
+  }
+
+  /// Recomputes the scan-cache stats shown on the dashboard: number of
+  /// stored scan summaries and the on-disk size of the database files plus
+  /// the demo sample folder. Callers notify listeners themselves.
+  Future<void> refreshCacheStats() async {
+    final stats = await database.scanCacheStats();
+    cacheScanCount = stats.scanCount;
+    cacheBytes = stats.dbBytes + await DemoService.demoFolderBytes();
   }
 
   // --- Scans -------------------------------------------------------------
@@ -170,6 +184,7 @@ class AppController extends ChangeNotifier {
       scanPhase = ScanPhase.done;
       await database.insertScan(result);
       latestScanRow = await database.latestScanRow();
+      await refreshCacheStats();
       notifyListeners();
     } catch (e) {
       scanError = e.toString();
@@ -628,6 +643,7 @@ class AppController extends ChangeNotifier {
   Future<void> clearHistory() async {
     await database.clearHistory();
     await refreshHistory();
+    await refreshCacheStats();
   }
 
   /// Clears regenerable cache: stored scan summaries (dashboard "last scan"
@@ -644,6 +660,7 @@ class AppController extends ChangeNotifier {
       // Best-effort cleanup — a locked temp file is not worth failing over.
     }
     latestScanRow = await database.latestScanRow();
+    await refreshCacheStats();
     notifyListeners();
   }
 
@@ -654,6 +671,7 @@ class AppController extends ChangeNotifier {
     await database.init();
     await refreshHistory();
     rules = await database.rules();
+    await refreshCacheStats();
   }
 
   Map<String, int>? latestCategoryCounts() {

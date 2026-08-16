@@ -159,6 +159,50 @@ class DashboardScreen extends StatelessWidget {
                   ],
                 ),
               ],
+              const SizedBox(height: 28),
+
+              // --- Storage / scan cache ---
+              const SectionHeader('Storage'),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.fact_check_outlined),
+                      title: const Text('Stored scans'),
+                      subtitle: const Text(
+                          'Scan summaries kept for the dashboard stats.'),
+                      trailing: Text(
+                        '${controller.cacheScanCount}',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.cleaning_services_outlined),
+                      title: const Text('Cache on disk'),
+                      subtitle: const Text(
+                          'Database files plus the demo sample folder.'),
+                      trailing: Text(
+                        FileUtils.humanSize(controller.cacheBytes),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Cleared from Settings → Storage → Clear scan cache.',
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .onSurfaceVariant),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
