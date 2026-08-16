@@ -2,6 +2,19 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.2.1] - 2026-08-16
+
+### Added
+- Settings → **About** section explaining the Windows SmartScreen
+  ("Windows protected your PC") warning: the release binaries are unsigned,
+  so Windows cannot verify the publisher — click **More info → Run anyway**;
+  the files are safe, offline and Defender-scanned
+- README installation notes and FAQ now carry the same guidance
+
+### Fixed
+- Settings footer showed a stale version number; it now matches the release
+- Version bumped to 1.2.1
+
 ## [1.2.0] - 2026-08-16
 
 ### Added
