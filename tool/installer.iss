@@ -1,6 +1,6 @@
 ; File Organizer Pro — Inno Setup installer script.
 ; Build with: ISCC.exe tool\installer.iss /DAppVersion=1.0.0
-; Expects the release build staged in dist\portable\File Organizer Pro\
+; Expects the release build staged in dist\portable\FileOrganizerPro-<version>\
 ; (see tool\build_release.ps1).
 
 #ifndef AppVersion
@@ -8,6 +8,7 @@
 #endif
 
 #define AppName "File Organizer Pro"
+#define AppDirName "FileOrganizerPro-" + AppVersion
 #define AppPublisher "File Organizer Pro Contributors"
 #define AppExeName "file_organizer_pro.exe"
 
@@ -40,7 +41,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-Source: "..\dist\portable\{#AppName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\dist\portable\{#AppDirName}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"

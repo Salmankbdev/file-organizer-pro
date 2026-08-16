@@ -41,22 +41,23 @@ if (-not (Test-Path (Join-Path $ReleaseDir $ExeName))) {
 
 $Dist = Join-Path $Root 'dist'
 $PortableRoot = Join-Path $Dist 'portable'
-$PortableApp = Join-Path $PortableRoot $AppName
+# Stage directly under the versioned folder name so the zip has a tidy
+# FileOrganizerPro-<version>/ top-level folder.
+$PortableApp = Join-Path $PortableRoot ('FileOrganizerPro-' + $Version)
+$ZipPath = Join-Path $Dist 'FileOrganizerPro-Portable.zip'
 if (Test-Path $Dist) { Remove-Item $Dist -Recurse -Force }
 New-Item -ItemType Directory -Path $PortableApp -Force | Out-Null
 
 Write-Host '==> staging portable build' -ForegroundColor Cyan
-Copy-Item (Join-Path $ReleaseDir '*') $PortableApp -Recurse -Force
+# robocopy preserves the directory tree exactly. PowerShell's Copy-Item with a
+# wildcard source can flatten subdirectories (notably data\, which the Flutter
+# engine requires next to the exe) when the destination already exists — the
+# portable zip was fine but installed apps crashed with "Can't load AOT data".
+robocopy $ReleaseDir $PortableApp /E /NFL /NDL /NJH /NJS /NP | Out-Null
+if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
 Write-Host '==> creating portable zip' -ForegroundColor Cyan
-# Rename the staged folder in place (Rename-Item takes a name, not a path),
-# so the zip contains a tidy FileOrganizerPro-<version>/ top-level folder.
-$ZipFolderName = 'FileOrganizerPro-' + $Version
-Rename-Item -Path $PortableApp -NewName $ZipFolderName
-$ZipFolder = Join-Path $PortableRoot $ZipFolderName
-$ZipPath = Join-Path $Dist 'FileOrganizerPro-Portable.zip'
-Compress-Archive -Path $ZipFolder -DestinationPath $ZipPath -Force
-Remove-Item $ZipFolder -Recurse -Force
+Compress-Archive -Path $PortableApp -DestinationPath $ZipPath -Force
 
 # --- Optional installer (Inno Setup) ---
 $IsccPath = $null
@@ -77,8 +78,8 @@ if (-not $IsccPath) {
 }
 if ($IsccPath) {
     Write-Host '==> building installer with Inno Setup' -ForegroundColor Cyan
-    # Keep the staged build for the installer to pack.
-    Copy-Item (Join-Path $ReleaseDir '*') $PortableApp -Recurse -Force
+    # Pack the same staged folder that went into the zip (it still exists) —
+    # never re-copy, so the data\ structure is guaranteed intact.
     & $IsccPath (Join-Path $Root 'tool\installer.iss') /DAppVersion=$Version
     if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
 } else {

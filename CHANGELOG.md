@@ -2,6 +2,20 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.2.2] - 2026-08-16
+
+### Fixed
+- **Installed app failed to start** ("Can't load AOT data from …\data\app.so")
+  — the build script's installer staging re-copied the build with PowerShell's
+  `Copy-Item`, which flattened the `data\` folder (containing `app.so`,
+  `icudtl.dat` and `flutter_assets`) into the install root, so the Flutter
+  engine had nothing to load. Every installer since v1.0.0 was affected;
+  the portable ZIP was not
+- Staging now uses `robocopy` (exact tree copy), stages once, and packs the
+  same folder into both the ZIP and the installer — the `data\` structure is
+  guaranteed intact
+- Version bumped to 1.2.2
+
 ## [1.2.1] - 2026-08-16
 
 ### Added
