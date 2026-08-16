@@ -188,6 +188,28 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                     Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: _StorageBar(
+                        segments: [
+                          (
+                            label: 'Scan cache',
+                            bytes: controller.storageCacheBytes,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                          (
+                            label: 'History',
+                            bytes: controller.storageHistoryBytes,
+                            color: Theme.of(context).colorScheme.secondary,
+                          ),
+                          (
+                            label: 'Rules',
+                            bytes: controller.storageRulesBytes,
+                            color: Theme.of(context).colorScheme.tertiary,
+                          ),
+                        ],
+                      ),
+                    ),
+                    Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
                       child: Align(
                         alignment: Alignment.centerLeft,
@@ -212,5 +234,77 @@ class DashboardScreen extends StatelessWidget {
 
   void _goTo(BuildContext context, int index) {
     context.findAncestorStateOfType<HomeShellState>()?.select(index);
+  }
+}
+
+/// A compact horizontal stacked bar showing how the app's stored data is
+/// split between scan cache, history and rules.
+class _StorageBar extends StatelessWidget {
+  const _StorageBar({required this.segments});
+
+  final List<({String label, int bytes, Color color})> segments;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final total = segments.fold<int>(0, (sum, s) => sum + s.bytes);
+    final bodySmall = Theme.of(context).textTheme.bodySmall;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: SizedBox(
+            height: 10,
+            width: double.infinity,
+            child: total == 0
+                ? ColoredBox(color: scheme.surfaceContainerHighest)
+                : Row(
+                    children: [
+                      for (final s in segments)
+                        if (s.bytes > 0)
+                          Expanded(
+                            flex: s.bytes,
+                            child: ColoredBox(color: s.color),
+                          ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (total == 0)
+          Text(
+            'Nothing stored yet — scans, history and rules will appear here.',
+            style: bodySmall?.copyWith(color: scheme.onSurfaceVariant),
+          )
+        else
+          Wrap(
+            spacing: 16,
+            runSpacing: 6,
+            children: [
+              for (final s in segments)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration:
+                          BoxDecoration(color: s.color, shape: BoxShape.circle),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(s.label, style: bodySmall),
+                    const SizedBox(width: 4),
+                    Text(
+                      FileUtils.humanSize(s.bytes),
+                      style: bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+      ],
+    );
   }
 }

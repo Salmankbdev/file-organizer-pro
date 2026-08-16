@@ -123,6 +123,9 @@ class AppController extends ChangeNotifier {
   // --- Cache stats (dashboard Storage section) ---
   int cacheScanCount = 0;
   int cacheBytes = 0;
+  int storageCacheBytes = 0;
+  int storageHistoryBytes = 0;
+  int storageRulesBytes = 0;
 
   Future<void> init() async {
     await settings.init();
@@ -133,12 +136,18 @@ class AppController extends ChangeNotifier {
   }
 
   /// Recomputes the scan-cache stats shown on the dashboard: number of
-  /// stored scan summaries and the on-disk size of the database files plus
-  /// the demo sample folder. Callers notify listeners themselves.
+  /// stored scan summaries, the on-disk size of the database files plus the
+  /// demo sample folder, and the per-table storage breakdown (cache vs.
+  /// history vs. rules). Callers notify listeners themselves.
   Future<void> refreshCacheStats() async {
     final stats = await database.scanCacheStats();
+    final breakdown = await database.storageBreakdown();
+    final demoBytes = await DemoService.demoFolderBytes();
     cacheScanCount = stats.scanCount;
-    cacheBytes = stats.dbBytes + await DemoService.demoFolderBytes();
+    cacheBytes = stats.dbBytes + demoBytes;
+    storageCacheBytes = breakdown.cacheBytes + demoBytes;
+    storageHistoryBytes = breakdown.historyBytes;
+    storageRulesBytes = breakdown.rulesBytes;
   }
 
   // --- Scans -------------------------------------------------------------

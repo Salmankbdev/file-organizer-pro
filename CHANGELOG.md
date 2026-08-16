@@ -2,6 +2,15 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.6.0] - 2026-08-16
+
+### Added
+- **Dashboard → Storage** now includes a compact stacked bar chart showing how
+  the app's stored data is split between scan cache, history and rules, with
+  a color-coded legend and byte sizes (computed from the per-table payloads,
+  refreshed live with every scan and cache clear)
+- Version bumped to 1.6.0
+
 ## [1.5.0] - 2026-08-16
 
 ### Added

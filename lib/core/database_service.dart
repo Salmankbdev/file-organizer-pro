@@ -190,6 +190,31 @@ class DatabaseService {
     }
   }
 
+  /// Approximate byte attribution of the data stored in each table: scan
+  /// summaries (cache), operation history, and rules. Computed from the
+  /// stored column payloads so it reflects what a clear actually removes.
+  Future<({int cacheBytes, int historyBytes, int rulesBytes})>
+      storageBreakdown() async {
+    final scans = await db.rawQuery(
+        'SELECT COALESCE(SUM(LENGTH(folder_path) + LENGTH(category_counts) '
+        '+ LENGTH(scanned_at)), 0) AS b FROM scans');
+    final ops = await db.rawQuery(
+        'SELECT COALESCE(SUM(LENGTH(file_name) + LENGTH(from_path) '
+        '+ LENGTH(to_path) + LENGTH(action) + LENGTH(status) '
+        '+ LENGTH(created_at) + LENGTH(COALESCE(details, \'\'))), 0) '
+        'AS b FROM operations');
+    final rules = await db.rawQuery(
+        'SELECT COALESCE(SUM(LENGTH(name) + LENGTH(field) '
+        '+ LENGTH(condition) + LENGTH(value) + LENGTH(target_folder)), 0) '
+        'AS b FROM rules');
+    int b(Map<String, Object?> row) => (row['b'] as num?)?.toInt() ?? 0;
+    return (
+      cacheBytes: b(scans.first),
+      historyBytes: b(ops.first),
+      rulesBytes: b(rules.first),
+    );
+  }
+
   /// Count of stored scan summaries and the on-disk size (in bytes) of the
   /// database files (`file_organizer.db` + WAL/SHM).
   Future<({int scanCount, int dbBytes})> scanCacheStats() async {

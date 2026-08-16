@@ -287,6 +287,16 @@
           <span>🧹 Cache on disk <span style="opacity:.6">— database + demo folder</span></span>
           <b id="d-cache-bytes">0 B</b>
         </div>
+        <div style="display:flex; height:10px; border-radius:4px; overflow:hidden; margin-top:12px">
+          <div id="bar-cache" style="flex: 8; background:#3b82f6"></div>
+          <div id="bar-hist" style="flex: 2; background:#8b5cf6"></div>
+          <div id="bar-rules" style="flex: 1; background:#10b981"></div>
+        </div>
+        <div style="display:flex; gap:16px; flex-wrap:wrap; margin-top:8px; font-size:12px">
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#3b82f6;margin-right:5px"></span>Scan cache <b id="d-bar-cache">0 B</b></span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8b5cf6;margin-right:5px"></span>History <b id="d-bar-hist">0 B</b></span>
+          <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#10b981;margin-right:5px"></span>Rules <b id="d-bar-rules">0 B</b></span>
+        </div>
         <div style="opacity:.6; font-size:12px; margin-top:8px">Cleared from Settings → Storage → Clear scan cache.</div>
       </div>
     </section>
@@ -762,6 +772,9 @@ function renderDashboard(){
   document.getElementById("d-large").textContent = state.largeFiles ? state.largeFiles.length : "—";
   document.getElementById("d-cache-scans").textContent = state.scanned ? 1 : 0;
   document.getElementById("d-cache-bytes").textContent = state.scanned ? "2.4 MB" : "0 B";
+  document.getElementById("d-bar-cache").textContent = state.scanned ? "2.4 MB" : "0 B";
+  document.getElementById("d-bar-hist").textContent = state.scanned ? "18 KB" : "0 B";
+  document.getElementById("d-bar-rules").textContent = state.scanned ? "1 KB" : "0 B";
   if (state.scanned) {
     document.getElementById("dash-sub").textContent =
       "Overview of Downloads (" + humanSize(FILES.reduce((s,f)=>s+f[2],0)) + ")";
