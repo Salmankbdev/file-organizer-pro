@@ -426,19 +426,32 @@ class _CategorySection extends StatelessWidget {
             '${moves.length} file(s) · ${FileUtils.humanSize(totalSize)}'),
         childrenPadding: const EdgeInsets.only(bottom: 8),
         children: [
-          for (final move in moves)
-            ListTile(
-              dense: true,
-              leading: const Icon(Icons.arrow_right_alt, size: 18),
-              title: Text(move.file.name,
-                  overflow: TextOverflow.ellipsis, maxLines: 1),
-              subtitle: Text(
-                '${FileUtils.humanSize(move.file.size)} → '
-                '${move.file.category.label}/',
-                overflow: TextOverflow.ellipsis,
-                maxLines: 1,
-              ),
+          // Only the visible rows are built — a preview with thousands of
+          // moves must not block the UI thread by building every tile.
+          const SizedBox(height: 4),
+          SizedBox(
+            height: (moves.length > 30 ? 30 : moves.length).toDouble() * 52,
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemExtent: 52,
+              itemCount: moves.length,
+              itemBuilder: (context, index) {
+                final move = moves[index];
+                return ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.arrow_right_alt, size: 18),
+                  title: Text(move.file.name,
+                      overflow: TextOverflow.ellipsis, maxLines: 1),
+                  subtitle: Text(
+                    '${FileUtils.humanSize(move.file.size)} → '
+                    '${move.file.category.label}/',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                );
+              },
             ),
+          ),
         ],
       ),
     );

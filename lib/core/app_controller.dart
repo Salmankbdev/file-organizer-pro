@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:flutter/widgets.dart';
 import 'package:path/path.dart' as p;
@@ -62,6 +63,12 @@ class AppController extends ChangeNotifier {
   int scanProgressFiles = 0;
   int scanProgressBytes = 0;
   bool _scanning = false;
+
+  /// Progress callbacks fire very often during long operations (per file);
+  /// notifying listeners on every call floods the UI thread. This bounds how
+  /// frequently the UI is rebuilt while progress runs.
+  static const _progressThrottle = Duration(milliseconds: 100);
+  DateTime _lastScanNotify = DateTime.fromMillisecondsSinceEpoch(0);
 
   // --- Organize state ---
   OrganizePhase organizePhase = OrganizePhase.idle;
@@ -150,7 +157,13 @@ class AppController extends ChangeNotifier {
         onProgress: (files, bytes) {
           scanProgressFiles = files;
           scanProgressBytes = bytes;
-          notifyListeners();
+          // Throttle rebuilds: notifying per file floods the UI thread for
+          // large folders (10k+ files). ~10 updates/second is plenty.
+          if (DateTime.now().difference(_lastScanNotify) >=
+              _progressThrottle) {
+            _lastScanNotify = DateTime.now();
+            notifyListeners();
+          }
         },
       );
       currentScan = result;
@@ -219,6 +232,7 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      var lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
       final result = await organizer.apply(
         plan,
         preventOverwrite: settings.preventOverwrite,
@@ -226,7 +240,10 @@ class AppController extends ChangeNotifier {
           organizeProgress = done;
           organizeTotal = total;
           organizeCurrentFile = current;
-          notifyListeners();
+          if (DateTime.now().difference(lastNotify) >= _progressThrottle) {
+            lastNotify = DateTime.now();
+            notifyListeners();
+          }
         },
       );
       lastApply = result;
@@ -355,12 +372,16 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      var lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
       duplicateGroups = await duplicateFinder.find(
         scan,
         onProgress: (done, total) {
           duplicateProgress = done;
           duplicateTotal = total;
-          notifyListeners();
+          if (DateTime.now().difference(lastNotify) >= _progressThrottle) {
+            lastNotify = DateTime.now();
+            notifyListeners();
+          }
         },
       );
       duplicatePhase = FindPhase.done;
@@ -416,14 +437,19 @@ class AppController extends ChangeNotifier {
     largeFiles = null;
     notifyListeners();
 
-    // Simulate a brief pass; filtering is cheap but gives the UI a beat.
-    await Future<void>.delayed(const Duration(milliseconds: 120));
-    final found = scan.files.where((f) => f.size >= minBytes).toList()
-      ..sort((a, b) => b.size.compareTo(a.size));
-    largeFiles = found;
-    largePhase = FindPhase.done;
-    _findingLarge = false;
-    notifyListeners();
+    try {
+      // Filter + sort on a background isolate so the UI stays responsive for
+      // large scans.
+      largeFiles = await Isolate.run(
+        () => _filterLargeFiles(scan.files, minBytes),
+      );
+      largePhase = FindPhase.done;
+    } catch (_) {
+      largePhase = FindPhase.idle;
+    } finally {
+      _findingLarge = false;
+      notifyListeners();
+    }
   }
 
   // --- Archive extraction ------------------------------------------------
@@ -456,13 +482,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      var lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
       final result = await archiveService.extract(
         plan,
         onProgress: (done, total, current) {
           extractProgress = done;
           extractTotal = total;
           extractCurrent = current;
-          notifyListeners();
+          if (DateTime.now().difference(lastNotify) >= _progressThrottle) {
+            lastNotify = DateTime.now();
+            notifyListeners();
+          }
         },
       );
       final batchId = await database.nextBatchId();
@@ -524,13 +554,17 @@ class AppController extends ChangeNotifier {
     notifyListeners();
 
     try {
+      var lastNotify = DateTime.fromMillisecondsSinceEpoch(0);
       final result = await renameService.apply(
         plan,
         onProgress: (done, total, current) {
           renameProgress = done;
           renameTotal = total;
           renameCurrent = current;
-          notifyListeners();
+          if (DateTime.now().difference(lastNotify) >= _progressThrottle) {
+            lastNotify = DateTime.now();
+            notifyListeners();
+          }
         },
       );
       renameResult = result;
@@ -623,6 +657,14 @@ class AppController extends ChangeNotifier {
     final folder = row['folder_path'] as String;
     return p.basename(folder);
   }
+}
+
+/// Filters [files] to those at least [minBytes] large, largest first.
+/// Top-level so it can run on a background isolate.
+List<ScannedFile> _filterLargeFiles(List<ScannedFile> files, int minBytes) {
+  final found = files.where((f) => f.size >= minBytes).toList()
+    ..sort((a, b) => b.size.compareTo(a.size));
+  return found;
 }
 
 /// Provides [AppController] to the widget tree and rebuilds dependents on

@@ -2,6 +2,28 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.3.0] - 2026-08-16
+
+### Performance
+- **Search no longer freezes the app**: typing is debounced (250 ms) and
+  filtering + sorting run on a **background isolate**, so the UI stays at
+  60 fps even with tens of thousands of files (a 100k-file filter+sort is
+  ~125 ms of CPU, previously executed synchronously on the UI thread on
+  every keystroke)
+- The results table is now **virtualized** — only the rows visible in the
+  viewport are built, so huge result sets render instantly and scroll
+  smoothly (previously every row widget was built eagerly, which froze the
+  UI on large folders)
+- Scan / organize / duplicate / extract / rename **progress updates are
+  throttled** to ~10 per second instead of firing once per file, cutting
+  rebuild flood on big folders
+- Large-file finder filters and sorts on a background isolate too
+- Organize preview builds only the visible move rows per category
+- New isolate-ready, unit-tested filter service (`scan_filter.dart`) with
+  10 new tests covering query, category, size range, date range and sort
+  combinations
+- Version bumped to 1.3.0
+
 ## [1.2.2] - 2026-08-16
 
 ### Fixed

@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:isolate';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
@@ -6,6 +9,7 @@ import '../core/file_utils.dart';
 import '../models/category.dart';
 import '../models/scanned_file.dart';
 import '../models/scan_result.dart';
+import '../services/scan_filter.dart';
 import '../widgets/common.dart';
 
 class ScanScreen extends StatefulWidget {
@@ -26,8 +30,27 @@ class _ScanScreenState extends State<ScanScreen> {
   bool _sortAscending = true;
   int? _sortColumn;
 
+  // --- Filtering state (debounced + background isolate) ---
+  Timer? _debounce;
+  List<ScannedFile>? _filtered;
+  bool _filtering = false;
+  int _filterVersion = 0;
+  ScanResult? _lastScan;
+
+  static const _debounceDelay = Duration(milliseconds: 250);
+
+  bool get _hasActiveFilters =>
+      _query.isNotEmpty ||
+      _categoryFilter != null ||
+      _minMb != null ||
+      _maxMb != null ||
+      _from != null ||
+      _to != null ||
+      _sortColumn != null;
+
   @override
   void dispose() {
+    _debounce?.cancel();
     _pathController.dispose();
     super.dispose();
   }
@@ -50,53 +73,72 @@ class _ScanScreenState extends State<ScanScreen> {
     await controller.scanFolder(path);
   }
 
-  List<ScannedFile> _visible(ScanResult scan) {
-    var files = scan.files;
-    if (_categoryFilter != null) {
-      files = files
-          .where((f) => f.category == _categoryFilter)
-          .toList();
+  /// Debounces query changes so typing doesn't filter on every keystroke.
+  void _onQueryChanged(String value) {
+    _query = value;
+    _debounce?.cancel();
+    _debounce = Timer(_debounceDelay, _applyFilters);
+  }
+
+  /// Recomputes the filtered + sorted list on a background isolate so the
+  /// UI thread never blocks, even for very large scans.
+  Future<void> _applyFilters() async {
+    final scan = _lastScan;
+    if (scan == null) return;
+    _debounce?.cancel();
+
+    // Fast path: nothing to filter or sort — show the raw list.
+    if (!_hasActiveFilters) {
+      if (_filtered != null || _filtering) {
+        setState(() {
+          _filtered = null;
+          _filtering = false;
+        });
+      }
+      return;
     }
-    if (_query.isNotEmpty) {
-      final q = _query.toLowerCase();
-      files = files.where((f) =>
-          f.name.toLowerCase().contains(q) ||
-          f.extension.toLowerCase().contains(q) ||
-          f.path.toLowerCase().contains(q)).toList();
-    }
-    if (_minMb != null) {
-      final minBytes = (_minMb! * 1024 * 1024).round();
-      files = files.where((f) => f.size >= minBytes).toList();
-    }
-    if (_maxMb != null) {
-      final maxBytes = (_maxMb! * 1024 * 1024).round();
-      files = files.where((f) => f.size <= maxBytes).toList();
-    }
-    if (_from != null) {
-      files = files.where((f) => !f.modified.isBefore(_from!)).toList();
-    }
-    if (_to != null) {
-      final end = _to!.add(const Duration(days: 1));
-      files = files.where((f) => f.modified.isBefore(end)).toList();
-    }
-    final column = _sortColumn;
-    if (column != null) {
-      files.sort((a, b) {
-        int cmp;
-        switch (column) {
-          case 0:
-            cmp = a.name.toLowerCase().compareTo(b.name.toLowerCase());
-          case 1:
-            cmp = a.category.index.compareTo(b.category.index);
-          case 2:
-            cmp = a.size.compareTo(b.size);
-          default:
-            cmp = a.modified.compareTo(b.modified);
-        }
-        return _sortAscending ? cmp : -cmp;
+
+    final version = ++_filterVersion;
+    setState(() => _filtering = true);
+
+    final query = _query;
+    final category = _categoryFilter;
+    final minMb = _minMb;
+    final maxMb = _maxMb;
+    final from = _from;
+    final to = _to;
+    final sortColumn = _sortColumn;
+    final sortAscending = _sortAscending;
+
+    try {
+      final result = await Isolate.run(
+        () => filterAndSortFiles(
+          scan.files,
+          query: query,
+          category: category,
+          minMb: minMb,
+          maxMb: maxMb,
+          from: from,
+          to: to,
+          sortColumn: sortColumn,
+          sortAscending: sortAscending,
+        ),
+      );
+      // Discard results from superseded filter changes.
+      if (!mounted || version != _filterVersion) return;
+      setState(() {
+        _filtered = result;
+        _filtering = false;
       });
+    } catch (_) {
+      if (!mounted || version != _filterVersion) return;
+      setState(() => _filtering = false);
     }
-    return files;
+  }
+
+  void _onFilterChanged(VoidCallback update) {
+    setState(update);
+    _applyFilters();
   }
 
   void _setSort(int columnIndex) {
@@ -108,6 +150,7 @@ class _ScanScreenState extends State<ScanScreen> {
         _sortAscending = true;
       }
     });
+    _applyFilters();
   }
 
   Future<void> _pickDate({required bool isFrom}) async {
@@ -119,7 +162,7 @@ class _ScanScreenState extends State<ScanScreen> {
       lastDate: DateTime.now(),
     );
     if (picked != null) {
-      setState(() => isFrom ? _from = picked : _to = picked);
+      _onFilterChanged(() => isFrom ? _from = picked : _to = picked);
     }
   }
 
@@ -127,6 +170,18 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     final controller = AppScope.of(context);
     final scan = controller.currentScan;
+
+    // A new scan arrived: drop the cached filter results (they belong to the
+    // previous scan) and recompute if any filter is active.
+    if (scan != _lastScan) {
+      _lastScan = scan;
+      _filterVersion++;
+      _filtered = null;
+      _filtering = false;
+      if (scan != null && _hasActiveFilters) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _applyFilters());
+      }
+    }
 
     return Scaffold(
       body: SafeArea(
@@ -147,7 +202,7 @@ class _ScanScreenState extends State<ScanScreen> {
                       controller: _pathController,
                       decoration: const InputDecoration(
                         labelText: 'Folder path',
-                        hintText: 'e.g. C:\\Users\\You\\Downloads',
+                        hintText: 'e.g. C:\\\\Users\\\\You\\\\Downloads',
                         border: OutlineInputBorder(),
                         prefixIcon: Icon(Icons.folder_outlined),
                       ),
@@ -216,19 +271,19 @@ class _ScanScreenState extends State<ScanScreen> {
                 else ...[
                   _Filters(
                     query: _query,
-                    onQueryChanged: (v) => setState(() => _query = v),
+                    onQueryChanged: _onQueryChanged,
                     categoryFilter: _categoryFilter,
                     onCategoryChanged: (c) =>
-                        setState(() => _categoryFilter = c),
+                        _onFilterChanged(() => _categoryFilter = c),
                     minMb: _minMb,
                     maxMb: _maxMb,
-                    onMinChanged: (v) => setState(() => _minMb = v),
-                    onMaxChanged: (v) => setState(() => _maxMb = v),
+                    onMinChanged: (v) => _onFilterChanged(() => _minMb = v),
+                    onMaxChanged: (v) => _onFilterChanged(() => _maxMb = v),
                     from: _from,
                     to: _to,
                     onPickFrom: () => _pickDate(isFrom: true),
                     onPickTo: () => _pickDate(isFrom: false),
-                    onClearDates: () => setState(() {
+                    onClearDates: () => _onFilterChanged(() {
                       _from = null;
                       _to = null;
                     }),
@@ -253,85 +308,272 @@ class _ScanScreenState extends State<ScanScreen> {
     );
   }
 
+  /// A virtualized, sortable table. Only the rows visible in the viewport are
+  /// built, so results with tens of thousands of files render instantly and
+  /// stay responsive while scrolling.
   Widget _buildTable(AppController controller, ScanResult scan) {
-    final files = _visible(scan);
+    final files = _filtered ?? scan.files;
+    final scheme = Theme.of(context).colorScheme;
+
+    const actionsWidth = 96.0;
+    const categoryWidth = 150.0;
+    const sizeWidth = 110.0;
+    const modifiedWidth = 160.0;
+    const fixedWidth = actionsWidth + categoryWidth + sizeWidth + modifiedWidth;
+    const minNameWidth = 220.0;
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 8),
         child: Column(
           children: [
+            if (_filtering) ...[
+              const LinearProgressIndicator(minHeight: 2),
+              const SizedBox(height: 4),
+            ],
             Expanded(
-              child: Scrollbar(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.vertical,
-                  child: SingleChildScrollView(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final available = constraints.maxWidth;
+                  final nameWidth =
+                      (available - fixedWidth).clamp(minNameWidth, double.infinity);
+                  final totalWidth = available > fixedWidth + minNameWidth
+                      ? available
+                      : fixedWidth + minNameWidth;
+                  return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      sortColumnIndex: _sortColumn,
-                      sortAscending: _sortAscending,
-                      columns: [
-                        DataColumn(
-                          label: const Text('Name'),
-                          onSort: (i, _) => _setSort(0),
-                        ),
-                        DataColumn(
-                          label: const Text('Category'),
-                          onSort: (i, _) => _setSort(1),
-                        ),
-                        DataColumn(
-                          label: const Text('Size'),
-                          numeric: true,
-                          onSort: (i, _) => _setSort(2),
-                        ),
-                        DataColumn(
-                          label: const Text('Modified'),
-                          onSort: (i, _) => _setSort(3),
-                        ),
-                        const DataColumn(label: Text('Actions')),
-                      ],
-                      rows: [
-                        for (final f in files)
-                          DataRow(cells: [
-                            DataCell(Text(f.name,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 1)),
-                            DataCell(Text(
-                                '${f.category.icon} ${f.category.label}')),
-                            DataCell(Text(FileUtils.humanSize(f.size))),
-                            DataCell(Text(FileUtils.humanDate(f.modified))),
-                            DataCell(Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Open file',
-                                  icon: const Icon(Icons.open_in_new,
-                                      size: 18),
-                                  onPressed: () => Shell.open(f.path),
-                                ),
-                                IconButton(
-                                  tooltip: 'Show in folder',
-                                  icon: const Icon(Icons.folder_open,
-                                      size: 18),
-                                  onPressed: () =>
-                                      Shell.showInFolder(f.path),
-                                ),
-                              ],
-                            )),
-                          ]),
-                      ],
+                    child: SizedBox(
+                      width: totalWidth,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _headerRow(
+                            nameWidth: nameWidth,
+                            categoryWidth: categoryWidth,
+                            sizeWidth: sizeWidth,
+                            modifiedWidth: modifiedWidth,
+                            actionsWidth: actionsWidth,
+                            scheme: scheme,
+                          ),
+                          Divider(height: 1, color: scheme.outlineVariant),
+                          Expanded(
+                            child: files.isEmpty
+                                ? const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(16),
+                                      child: Text('No files match the filters.'),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemExtent: 44,
+                                    itemCount: files.length,
+                                    itemBuilder: (context, index) =>
+                                        _dataRow(
+                                      files[index],
+                                      nameWidth: nameWidth,
+                                      categoryWidth: categoryWidth,
+                                      sizeWidth: sizeWidth,
+                                      modifiedWidth: modifiedWidth,
+                                      actionsWidth: actionsWidth,
+                                      context: context,
+                                    ),
+                                  ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),
               child: Text(
-                'Showing ${files.length} of ${scan.fileCount} files',
+                'Showing ${files.length} of ${scan.fileCount} files'
+                '${_filtering ? ' — filtering…' : ''}',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _headerRow({
+    required double nameWidth,
+    required double categoryWidth,
+    required double sizeWidth,
+    required double modifiedWidth,
+    required double actionsWidth,
+    required ColorScheme scheme,
+  }) {
+    return SizedBox(
+      height: 40,
+      child: Row(
+        children: [
+          _sortHeader(
+            label: 'Name',
+            column: 0,
+            width: nameWidth,
+            scheme: scheme,
+            numeric: false,
+          ),
+          _sortHeader(
+            label: 'Category',
+            column: 1,
+            width: categoryWidth,
+            scheme: scheme,
+            numeric: false,
+          ),
+          _sortHeader(
+            label: 'Size',
+            column: 2,
+            width: sizeWidth,
+            scheme: scheme,
+            numeric: true,
+          ),
+          _sortHeader(
+            label: 'Modified',
+            column: 3,
+            width: modifiedWidth,
+            scheme: scheme,
+            numeric: false,
+          ),
+          SizedBox(
+            width: actionsWidth,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Actions',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sortHeader({
+    required String label,
+    required int column,
+    required double width,
+    required ColorScheme scheme,
+    required bool numeric,
+  }) {
+    final selected = _sortColumn == column;
+    return SizedBox(
+      width: width,
+      child: InkWell(
+        onTap: () => _setSort(column),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Align(
+            alignment: numeric ? Alignment.centerRight : Alignment.centerLeft,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment:
+                  numeric ? MainAxisAlignment.end : MainAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    color: selected ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+                if (selected) ...[
+                  const SizedBox(width: 2),
+                  Icon(
+                    _sortAscending
+                        ? Icons.arrow_upward
+                        : Icons.arrow_downward,
+                    size: 14,
+                    color: scheme.primary,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dataRow(
+    ScannedFile f, {
+    required double nameWidth,
+    required double categoryWidth,
+    required double sizeWidth,
+    required double modifiedWidth,
+    required double actionsWidth,
+    required BuildContext context,
+  }) {
+    return SizedBox(
+      height: 44,
+      child: Row(
+        children: [
+          _cell(
+            width: nameWidth,
+            child: Text(f.name,
+                overflow: TextOverflow.ellipsis, maxLines: 1),
+          ),
+          _cell(
+            width: categoryWidth,
+            child: Text('${f.category.icon} ${f.category.label}',
+                overflow: TextOverflow.ellipsis, maxLines: 1),
+          ),
+          _cell(
+            width: sizeWidth,
+            alignRight: true,
+            child: Text(FileUtils.humanSize(f.size)),
+          ),
+          _cell(
+            width: modifiedWidth,
+            child: Text(FileUtils.humanDate(f.modified)),
+          ),
+          SizedBox(
+            width: actionsWidth,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  tooltip: 'Open file',
+                  icon: const Icon(Icons.open_in_new, size: 18),
+                  onPressed: () => Shell.open(f.path),
+                ),
+                IconButton(
+                  tooltip: 'Show in folder',
+                  icon: const Icon(Icons.folder_open, size: 18),
+                  onPressed: () => Shell.showInFolder(f.path),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cell({
+    required double width,
+    required Widget child,
+    bool alignRight = false,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Align(
+          alignment: alignRight ? Alignment.centerRight : Alignment.centerLeft,
+          child: child,
         ),
       ),
     );
