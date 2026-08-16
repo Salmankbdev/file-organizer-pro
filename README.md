@@ -61,6 +61,11 @@ Coming soon — see the `screenshots/` folder once the first release is out.
 - `FileOrganizerPro-Portable.zip` — unzip and run `file_organizer_pro.exe`
   without installing anything
 
+> **SmartScreen warning?** The releases are unsigned, so Windows may show
+> "Windows protected your PC" the first time you run the installer or the
+> portable exe. Click **More info** → **Run anyway** — the files are safe.
+> See the FAQ below for details.
+
 ### From source (Windows 10/11)
 
 1. Install [Flutter](https://docs.flutter.dev/get-started/install/windows) (stable channel)
@@ -201,6 +206,14 @@ the history and can be reversed at any time.
 
 **Is organizing a system folder allowed?** Only if you explicitly disable
 system-folder protection in Settings — it is on by default.
+
+**Windows shows "Windows protected your PC" when I run the exe — is it
+safe?** Yes. The release binaries are not code-signed — signing certificates
+cost money and this is a free, open-source project — so Windows can't verify
+the publisher and shows a warning instead. Click **More info** → **Run
+anyway** to proceed. The files are scanned clean by Windows Defender, the
+app is fully open source, works offline, and never moves or deletes a file
+without showing you a preview first.
 
 ## 🤝 Contributing
 
