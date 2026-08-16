@@ -179,10 +179,15 @@ class DatabaseService {
 
   /// Removes stored scan summaries — regenerable cache used for the
   /// dashboard's "last scan" stats. Operations, rules and preferences are
-  /// untouched. A [VACUUM] reclaims the freed space so the on-disk cache
-  /// size visibly drops.
+  /// untouched. A WAL checkpoint truncates the journal, then a [VACUUM]
+  /// reclaims the freed space so the on-disk cache size visibly drops.
   Future<void> clearScanCache() async {
     await db.delete('scans');
+    try {
+      await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+    } catch (_) {
+      // Checkpoint is best-effort; VACUUM below still compacts.
+    }
     try {
       await db.execute('VACUUM');
     } catch (_) {

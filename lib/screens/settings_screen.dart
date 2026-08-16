@@ -172,14 +172,18 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     ListTile(
                       leading: const Icon(Icons.cleaning_services_outlined),
-                      title: const Text('Clear scan cache'),
-                      subtitle: const Text(
-                          'Removes stored scan summaries (dashboard stats) '
-                          'and the demo sample folder. Files, rules and '
-                          'history are kept — re-scan to rebuild.'),
+                      title: const Text('Cache cleaner'),
+                      subtitle: Text(
+                        '${controller.cacheScanCount} stored scan '
+                        'summary(ies), the demo sample folder and database '
+                        'overhead — ${humanSize(controller.cacheBytes)} on '
+                        'disk. Your files, rules and history are kept.',
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       trailing: OutlinedButton(
                         onPressed: () => _confirmClearCache(context, controller),
-                        child: const Text('Clear'),
+                        child: const Text('Clean'),
                       ),
                     ),
                     ListTile(
@@ -247,7 +251,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                     ListTile(
                       leading: const Icon(Icons.info_outline),
-                      title: const Text('File Organizer Pro v1.6.0'),
+                      title: const Text('File Organizer Pro v1.7.0'),
                       subtitle: const Text(
                           'Scans, organizes and undoes everything locally. '
                           'No account, no internet required.'),
@@ -322,27 +326,33 @@ class SettingsScreen extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.cleaning_services_outlined),
-        title: const Text('Clear scan cache?'),
-        content: const Text(
-            'Stored scan summaries and the demo sample folder will be '
-            'removed. Your files are never touched, and rules, history '
-            'and settings are kept.'),
+        title: const Text('Clean all cache?'),
+        content: Text(
+            'This removes everything regenerable:\n'
+            '\u2022 ${controller.cacheScanCount} stored scan '
+            'summary(ies)\n'
+            '\u2022 Demo sample folder\n'
+            '\u2022 Database journal overhead\n\n'
+            'Your files are never touched. Rules, operation history and '
+            'settings are kept — re-scan to rebuild the cache.'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Clear'),
+            child: const Text('Clean'),
           ),
         ],
       ),
     );
     if (ok == true) {
-      await controller.clearCache();
+      final result = await controller.clearCache();
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Scan cache cleared.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(result.freedNothing
+                ? 'Cache cleaned — nothing to free.'
+                : 'Cache cleaned — ${humanSize(result.bytesFreed)} freed.')));
       }
     }
   }

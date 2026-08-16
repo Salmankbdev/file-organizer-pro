@@ -12,6 +12,7 @@ import '../models/move_operation.dart';
 import '../models/scanned_file.dart';
 import '../models/scan_result.dart';
 import '../services/archive_service.dart';
+import '../services/cache_cleaner.dart';
 import '../services/demo_service.dart';
 import '../services/duplicate_service.dart';
 import '../services/organizer_service.dart';
@@ -39,13 +40,15 @@ class AppController extends ChangeNotifier {
     DemoService? demo,
     ArchiveService? archiveService,
     RenameService? renameService,
+    CacheCleanerService? cacheCleaner,
   })  : database = database ?? DatabaseService.instance,
         scanner = scanner ?? const ScannerService(),
         organizer = organizer ?? const OrganizerService(),
         duplicateFinder = duplicateFinder ?? const DuplicateService(),
         demo = demo ?? const DemoService(),
         archiveService = archiveService ?? const ArchiveService(),
-        renameService = renameService ?? const RenameService();
+        renameService = renameService ?? const RenameService(),
+        cacheCleaner = cacheCleaner ?? const CacheCleanerService();
 
   final SettingsService settings;
   final DatabaseService database;
@@ -55,6 +58,7 @@ class AppController extends ChangeNotifier {
   final DemoService demo;
   final ArchiveService archiveService;
   final RenameService renameService;
+  final CacheCleanerService cacheCleaner;
 
   // --- Scan state ---
   ScanPhase scanPhase = ScanPhase.idle;
@@ -655,22 +659,17 @@ class AppController extends ChangeNotifier {
     await refreshCacheStats();
   }
 
-  /// Clears regenerable cache: stored scan summaries (dashboard "last scan"
-  /// stats) and the disposable demo sample folder. Rules, operation history
-  /// and preferences are kept — the next scan rebuilds the cache.
-  Future<void> clearCache() async {
-    await database.clearScanCache();
-    try {
-      final demoDir = Directory(DemoService.demoRoot);
-      if (await demoDir.exists()) {
-        await demoDir.delete(recursive: true);
-      }
-    } catch (_) {
-      // Best-effort cleanup — a locked temp file is not worth failing over.
-    }
+  /// Clears every piece of regenerable cache: stored scan summaries
+  /// (dashboard "last scan" stats), the disposable demo sample folder, and
+  /// SQLite journal overhead. Rules, operation history and preferences are
+  /// kept — the next scan rebuilds the cache. Returns what was freed so the
+  /// UI can report it.
+  Future<CacheCleanResult> clearCache() async {
+    final result = await cacheCleaner.clean();
     latestScanRow = await database.latestScanRow();
     await refreshCacheStats();
     notifyListeners();
+    return result;
   }
 
   /// Wipes preferences and the database, returning the app to first-run state.

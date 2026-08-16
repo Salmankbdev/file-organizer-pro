@@ -297,7 +297,7 @@
           <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#8b5cf6;margin-right:5px"></span>History <b id="d-bar-hist">0 B</b></span>
           <span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#10b981;margin-right:5px"></span>Rules <b id="d-bar-rules">0 B</b></span>
         </div>
-        <div style="opacity:.6; font-size:12px; margin-top:8px">Cleared from Settings → Storage → Clear scan cache.</div>
+        <div style="opacity:.6; font-size:12px; margin-top:8px">Cleared from Settings → Storage → Cache cleaner.</div>
       </div>
     </section>
 
@@ -614,6 +614,18 @@
         </div>
       </div>
 
+      <div class="section-title">Storage</div>
+      <div class="card">
+        <div class="set-row">
+          <span class="s-ico">🧹</span>
+          <div class="grow">
+            <div class="s-title">Cache cleaner</div>
+            <div class="s-sub" id="set-cache-sub">0 stored scan summaries, the demo sample folder and database overhead — 0 B on disk. Your files, rules and history are kept.</div>
+          </div>
+          <button class="btn btn-outline" id="btn-clear-cache" style="padding:8px 16px">Clean</button>
+        </div>
+      </div>
+
       <div class="section-title">Safety</div>
       <div class="card">
         <div class="set-row">
@@ -641,7 +653,7 @@
           <label class="toggle"><input type="checkbox" id="set-noverwrite" checked><span class="track"></span></label>
         </div>
       </div>
-      <p style="font-size:12px; color:var(--on-variant); margin-top:22px">File Organizer Pro v1.2.0 — scans, organizes, renames and undoes everything locally. No account, no internet required.</p>
+      <p style="font-size:12px; color:var(--on-variant); margin-top:22px">File Organizer Pro v1.7.0 — scans, organizes, renames, extracts and undoes everything locally. No account, no internet required.</p>
     </section>
   </main>
 </div>
@@ -697,6 +709,7 @@ const state = {
   theme: "light",
   accent: "#6750A4",
   scanned: false,
+  cacheCleared: false,
   scanDuration: 1.4,
   organized: false,
   history: [],            // {when,file,from,to,action,status}
@@ -770,12 +783,13 @@ function renderDashboard(){
   document.getElementById("d-organized").textContent = state.appliedCount;
   document.getElementById("d-dup").textContent = state.dupGroups ? state.dupGroups.reduce((s,g)=>s+g.length,0) : "—";
   document.getElementById("d-large").textContent = state.largeFiles ? state.largeFiles.length : "—";
-  document.getElementById("d-cache-scans").textContent = state.scanned ? 1 : 0;
-  document.getElementById("d-cache-bytes").textContent = state.scanned ? "2.4 MB" : "0 B";
-  document.getElementById("d-bar-cache").textContent = state.scanned ? "2.4 MB" : "0 B";
-  document.getElementById("d-bar-hist").textContent = state.scanned ? "18 KB" : "0 B";
-  document.getElementById("d-bar-rules").textContent = state.scanned ? "1 KB" : "0 B";
-  if (state.scanned) {
+  const cached = state.scanned && !state.cacheCleared;
+  document.getElementById("d-cache-scans").textContent = cached ? 1 : 0;
+  document.getElementById("d-cache-bytes").textContent = cached ? "2.4 MB" : "0 B";
+  document.getElementById("d-bar-cache").textContent = cached ? "2.4 MB" : "0 B";
+  document.getElementById("d-bar-hist").textContent = state.history.length ? "18 KB" : "0 B";
+  document.getElementById("d-bar-rules").textContent = "1 KB";
+  if (cached) {
     document.getElementById("dash-sub").textContent =
       "Overview of Downloads (" + humanSize(FILES.reduce((s,f)=>s+f[2],0)) + ")";
     document.getElementById("d-last").textContent = "Aug 15, 2026";
@@ -784,7 +798,24 @@ function renderDashboard(){
     FILES.forEach(f => counts[f[1]] = (counts[f[1]]||0)+1);
     document.getElementById("d-cats").innerHTML = Object.entries(counts)
       .map(([k,v]) => `<span class="chip">${CATS[k].icon} ${CATS[k].label} · ${v}</span>`).join("");
+  } else if (state.scanned) {
+    // Cache cleared — the stored "last scan" stats are gone until the
+    // next scan, matching the real app's behavior.
+    document.getElementById("dash-sub").textContent =
+      "Run your first scan to see the overview of a folder.";
+    document.getElementById("d-last").textContent = "Never";
+    document.getElementById("d-tag-last").textContent = "never";
+    document.getElementById("d-cats").innerHTML =
+      "<span class=\"chip\" style=\"opacity:.6\">No scan yet</span>";
   }
+  updateCacheSub();
+}
+
+function updateCacheSub(){
+  const cached = state.scanned && !state.cacheCleared;
+  document.getElementById("set-cache-sub").textContent = cached
+    ? "1 stored scan summary, the demo sample folder and database overhead — 2.4 MB on disk. Your files, rules and history are kept."
+    : "0 stored scan summaries, the demo sample folder and database overhead — 0 B on disk. Your files, rules and history are kept.";
 }
 
 /* ---------- scan ---------- */
@@ -841,6 +872,12 @@ document.getElementById("btn-browse-default").onclick = () => {
 document.getElementById("btn-clear-default").onclick = () => {
   document.getElementById("set-default").textContent = "Not set";
   document.getElementById("btn-clear-default").style.display = "none";
+};
+document.getElementById("btn-clear-cache").onclick = () => {
+  const hadCache = state.scanned && !state.cacheCleared;
+  state.cacheCleared = true;
+  renderDashboard();
+  toast(hadCache ? "Cache cleaned — 2.4 MB freed." : "Cache cleaned — nothing to free.");
 };
 
 function runScan(){

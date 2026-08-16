@@ -2,6 +2,21 @@
 
 All notable changes to File Organizer Pro are documented here.
 
+## [1.7.0] - 2026-08-16
+
+### Added
+- **Cache cleaner** in Settings → Storage: one action clears every piece of
+  regenerable cache — stored scan summaries, the demo sample folder, and
+  SQLite journal overhead (WAL checkpoint + `VACUUM` so the space is
+  actually reclaimed) — and reports exactly how much was freed
+- The cache cleaner shows the current footprint live (scan summaries,
+  demo folder and database overhead on disk) and confirms exactly what will
+  be removed before running; operation history, rules, settings and your
+  files are never touched
+- New `CacheCleanerService` (testable) with a snapshot/clean API, plus
+  parameterized demo-folder helpers; 6 new unit tests
+- Version bumped to 1.7.0
+
 ## [1.6.0] - 2026-08-16
 
 ### Added

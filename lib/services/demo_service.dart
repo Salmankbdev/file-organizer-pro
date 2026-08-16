@@ -17,12 +17,16 @@ class DemoService {
       p.join(Directory.systemTemp.path, folderName);
 
   /// Total bytes on disk of the demo sample folder, if it exists.
-  static Future<int> demoFolderBytes() async {
-    final root = Directory(demoRoot);
-    if (!await root.exists()) return 0;
+  static Future<int> demoFolderBytes() => folderBytes(demoRoot);
+
+  /// Total bytes on disk of the folder at [root], or 0 if it doesn't exist.
+  /// Parameterized so tests can point it at a temp directory.
+  static Future<int> folderBytes(String root) async {
+    final dir = Directory(root);
+    if (!await dir.exists()) return 0;
     var total = 0;
     await for (final entity
-        in root.list(recursive: true, followLinks: false)) {
+        in dir.list(recursive: true, followLinks: false)) {
       if (entity is File) {
         try {
           total += await entity.length();
@@ -32,6 +36,15 @@ class DemoService {
       }
     }
     return total;
+  }
+
+  /// Recursively deletes the folder at [root]. Returns whether it existed
+  /// and was removed; a missing folder returns false without error.
+  static Future<bool> deleteFolder(String root) async {
+    final dir = Directory(root);
+    if (!await dir.exists()) return false;
+    await dir.delete(recursive: true);
+    return true;
   }
 
   /// Creates (or recreates) the demo folder and returns its path.

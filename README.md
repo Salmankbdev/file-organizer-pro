@@ -5,7 +5,7 @@ organization utility for Windows 10/11. Fully offline, no account required.
 
 ![Platform](https://img.shields.io/badge/platform-Windows%2010%2B-blue)
 ![Flutter](https://img.shields.io/badge/Flutter-3.41-blueviolet)
-![Version](https://img.shields.io/badge/version-1.2.0-green)
+![Version](https://img.shields.io/badge/version-1.7.0-green)
 ![License](https://img.shields.io/badge/license-MIT-blue)
 
 ## ✨ Features
@@ -44,6 +44,10 @@ organization utility for Windows 10/11. Fully offline, no account required.
 - **🎨 Appearance** — light/dark mode and accent color
 - **🛡️ Safety first** — system-folder protection, conflict handling with
   `name (1).ext`, delete confirmations, overwrite protection, failure isolation
+- **🧹 Cache cleaner** — clear every piece of regenerable cache (stored
+  scan summaries, the demo sample folder, database journal overhead) in one
+  action from *Settings → Storage*, with a live footprint and a freed-bytes
+  report; history, rules and your files are never touched
 - **💾 Local & private** — everything is stored in a local SQLite database;
   no internet, no telemetry, no account
 
@@ -177,6 +181,11 @@ tool/
 | MVP 5 — Testing → Docs → Release | ✅ v1.0.0 released |
 | v1.1.0 — Archive extraction + per-rule folder options | ✅ released |
 | v1.2.0 — Batch rename (patterns, preview, undo) | ✅ released |
+| v1.3.0 — Search performance (debounce + isolate + virtualized table) | ✅ released |
+| v1.4.0 — Cache clearer (Settings → Storage) | ✅ released |
+| v1.5.0 — Dashboard Storage section (cache footprint) | ✅ released |
+| v1.6.0 — Storage bar chart (cache vs history vs rules) | ✅ released |
+| v1.7.0 — Cache cleaner (all regenerable cache, freed-bytes report) | ✅ released |
 
 Planned next: 7z/rar extraction, more scan filters (owner, hidden files),
 archive-in-archive handling, and a portable settings export/import.

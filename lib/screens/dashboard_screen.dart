@@ -214,7 +214,7 @@ class DashboardScreen extends StatelessWidget {
                       child: Align(
                         alignment: Alignment.centerLeft,
                         child: Text(
-                          'Cleared from Settings → Storage → Clear scan cache.',
+                          'Cleared from Settings → Storage → Cache cleaner.',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                               color: Theme.of(context)
                                   .colorScheme
